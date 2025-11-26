@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
@@ -38,6 +37,31 @@ const App: React.FC = () => {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const savedTheme = localStorage.getItem('MOA_THEME');
+      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  // Apply Theme
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('MOA_THEME', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
   
   // User State including Authentication
   const [userState, setUserState] = useState<UserState>(savedData?.userState || { 
@@ -329,8 +353,6 @@ const App: React.FC = () => {
       
       if (recentUsage.length >= FREE_QUESTIONS_LIMIT) {
         setShowPaymentModal(true);
-        // Optionally show a message in chat or alert
-        // alert("You've reached the limit of 5 questions per hour. Please upgrade to Premium.");
         return;
       }
 
@@ -383,40 +405,40 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen relative">
+    <div className="flex flex-col h-screen relative bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <InteractiveBackground />
       
       {/* Main Content Wrapper - Glass Effect */}
-      <div className="relative z-10 flex flex-col h-screen bg-white/30 backdrop-blur-sm">
+      <div className="relative z-10 flex flex-col h-screen bg-white/30 dark:bg-slate-900/40 backdrop-blur-sm">
         
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-white/50 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-white/50 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm transition-colors">
           <div className="flex items-center gap-2">
              <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-brand-500/30 shadow-lg">M</div>
-             <h1 className="font-bold text-xl text-slate-800 tracking-tight">{APP_NAME}</h1>
+             <h1 className="font-bold text-xl text-slate-800 dark:text-white tracking-tight">{APP_NAME}</h1>
           </div>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setShowSettingsModal(true)}
-              className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 p-1.5 rounded-lg transition-colors"
+              className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
             >
-               <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs border border-brand-200">
+               <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800">
                  {userState.user.name.charAt(0).toUpperCase()}
                </div>
                <div className="flex flex-col items-start">
-                 <span className="text-sm font-medium text-slate-700 leading-tight">{userState.user.name}</span>
-                 <span className="text-[10px] text-slate-400">Settings</span>
+                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-tight">{userState.user.name}</span>
+                 <span className="text-[10px] text-slate-400 dark:text-slate-500">Settings</span>
                </div>
             </button>
-            <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 font-medium">Logout</button>
+            <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 dark:text-slate-400 font-medium">Logout</button>
 
             {userState.isPremium ? (
-              <span className="hidden sm:flex px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 items-center gap-1 shadow-sm">
+              <span className="hidden sm:flex px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 dark:border-amber-800 items-center gap-1 shadow-sm">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                 Premium
               </span>
             ) : (
-               <button onClick={() => setShowPaymentModal(true)} className="text-sm text-slate-600 hover:text-brand-600 font-medium transition-colors bg-white/50 px-3 py-1 rounded-full border border-slate-200">
+               <button onClick={() => setShowPaymentModal(true)} className="text-sm text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 font-medium transition-colors bg-white/50 dark:bg-slate-700/50 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600">
                  Upgrade Plan
                </button>
             )}
@@ -427,7 +449,7 @@ const App: React.FC = () => {
         <main className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full overflow-hidden">
           
           {/* Left Sidebar: File Upload & Contacts */}
-          <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
+          <div className="w-full md:w-80 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-r border-white/50 dark:border-slate-700 p-6 flex flex-col z-10 overflow-y-auto transition-colors">
             <div className="flex-1">
               
               {/* Install PWA Button */}
@@ -442,32 +464,32 @@ const App: React.FC = () => {
                      </svg>
                      Install App
                    </button>
-                   <p className="text-[10px] text-center text-slate-500 mt-2">Add to Home Screen for easier access</p>
+                   <p className="text-[10px] text-center text-slate-500 dark:text-slate-400 mt-2">Add to Home Screen for easier access</p>
                 </div>
               )}
 
-              <h2 className="font-semibold text-slate-800 mb-2">Internal Storage</h2>
-              <p className="text-sm text-slate-500 mb-4">Select any document from your phone.</p>
+              <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Internal Storage</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Select any document from your phone.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} ${!file && !isProcessingFile ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
                   {isProcessingFile ? (
                      <div className="flex flex-col items-center w-full px-4">
-                        <div className="w-full bg-slate-200 rounded-full h-2 mb-3 overflow-hidden">
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-3 overflow-hidden">
                           <div 
                             className="bg-brand-500 h-2 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-brand-400 to-brand-600 animate-shimmer"
                             style={{ width: `${Math.max(5, uploadProgress)}%`, backgroundSize: '1000px 100%' }}
                           ></div>
                         </div>
-                        <p className="text-xs text-brand-600 font-medium animate-pulse">{processingStatus || 'Processing...'}</p>
+                        <p className="text-xs text-brand-600 dark:text-brand-400 font-medium animate-pulse">{processingStatus || 'Processing...'}</p>
                      </div>
                   ) : (
                     <>
-                      <div className="mb-3 p-3 bg-brand-50 rounded-full group-hover:bg-brand-100 transition-colors text-brand-500">
+                      <div className="mb-3 p-3 bg-brand-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-100 dark:group-hover:bg-slate-600 transition-colors text-brand-500 dark:text-brand-400">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                       </div>
-                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Access Internal Storage</p>
-                      <p className="text-xs text-slate-400">PDF, Word, Images & All Documents</p>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 group-hover:text-brand-700 dark:group-hover:text-brand-400">Access Internal Storage</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">PDF, Word, Images & All Documents</p>
                     </>
                   )}
                 </div>
@@ -475,7 +497,7 @@ const App: React.FC = () => {
                   type="file" 
                   className="hidden" 
                   onChange={handleFileUpload} 
-                  accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/*,image/*,*/*" // Explicitly list document types for better mobile support
+                  accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/*,image/*,*/*" 
                   disabled={isProcessingFile}
                 />
               </label>
@@ -483,7 +505,7 @@ const App: React.FC = () => {
               {/* Library Access Button */}
               <button 
                 onClick={() => setShowLibraryModal(true)}
-                className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl border border-indigo-200 transition-all font-medium text-sm"
+                className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all font-medium text-sm"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -492,20 +514,20 @@ const App: React.FC = () => {
               </button>
 
               {file && (
-                <div className="bg-white/80 rounded-lg p-4 border border-brand-100 shadow-sm animate-fade-in-up mb-6">
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-4 border border-brand-100 dark:border-slate-700 shadow-sm animate-fade-in-up mb-6">
                   <div className="flex items-start gap-3">
                     {file.originalImage ? (
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 border border-slate-200">
+                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 border border-slate-200 dark:border-slate-600">
                         <img src={file.originalImage} alt="Thumbnail" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="p-2 bg-brand-50 rounded-md text-brand-500 flex-shrink-0">
+                      <div className="p-2 bg-brand-50 dark:bg-slate-700 rounded-md text-brand-500 flex-shrink-0">
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
                     )}
                     <div className="overflow-hidden flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-brand-900 truncate" title={file.name}>{file.name}</p>
-                        <p className="text-xs text-brand-700 uppercase mt-0.5 flex items-center gap-1">
+                        <p className="text-sm font-semibold text-brand-900 dark:text-brand-100 truncate" title={file.name}>{file.name}</p>
+                        <p className="text-xs text-brand-700 dark:text-brand-300 uppercase mt-0.5 flex items-center gap-1">
                           <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
                           Ready for questions
                         </p>
@@ -513,11 +535,11 @@ const App: React.FC = () => {
                   </div>
                   
                   {/* Share to Library Button */}
-                  <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
                     <button 
                       onClick={handlePublishToLibrary}
                       disabled={isPublishing}
-                      className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 hover:text-brand-600 transition-colors"
+                      className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
                     >
                       {isPublishing ? (
                         <>
@@ -555,9 +577,9 @@ const App: React.FC = () => {
               {/* Settings Trigger Button */}
               <button 
                 onClick={() => setShowSettingsModal(true)}
-                className="w-full flex items-center gap-3 p-3 bg-white/50 hover:bg-white rounded-xl border border-white/40 hover:border-slate-200 transition-all text-slate-700 font-medium shadow-sm group"
+                className="w-full flex items-center gap-3 p-3 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl border border-white/40 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all text-slate-700 dark:text-slate-300 font-medium shadow-sm group"
               >
-                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:text-brand-600 group-hover:bg-brand-50 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-brand-600 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -569,10 +591,10 @@ const App: React.FC = () => {
           </div>
 
           {/* Right Area: Chat */}
-          <div className="flex-1 flex flex-col h-full relative bg-white/40">
+          <div className="flex-1 flex flex-col h-full relative bg-white/40 dark:bg-slate-900/40">
              <ChatInterface messages={messages} isLoading={isLoading} />
              
-             <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white/50">
+             <div className="p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-t border-white/50 dark:border-slate-700 transition-colors">
                 <form onSubmit={handleSendMessage} className="flex gap-2 relative max-w-4xl mx-auto">
                   <input 
                     type="text" 
@@ -585,7 +607,7 @@ const App: React.FC = () => {
                           ? `Ask a question about "${file.name}"...`
                           : "Upload from device or Library to get started..."
                     }
-                    className={`flex-1 border border-slate-300 bg-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
+                    className={`flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
                     disabled={!file || isLoading}
                   />
                   
@@ -597,8 +619,8 @@ const App: React.FC = () => {
                       disabled={!file || isLoading}
                       className={`absolute right-12 top-1 bottom-1 px-3 rounded-md transition-all ${
                         isListening 
-                          ? 'text-red-500 bg-red-50 animate-pulse' 
-                          : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50'
+                          ? 'text-red-500 bg-red-50 dark:bg-red-900/30 animate-pulse' 
+                          : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50 dark:hover:bg-slate-600'
                       } ${(!file || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       title={isListening ? "Stop Listening" : "Start Voice Input"}
                     >
@@ -612,7 +634,7 @@ const App: React.FC = () => {
                      <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                   </Button>
                 </form>
-                <p className="text-center text-xs text-slate-500 mt-2 font-medium">
+                <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
                   {isListening ? <span className="text-red-500 font-semibold animate-pulse">Recording... Click mic to stop.</span> : "MOA AI"}
                 </p>
              </div>
@@ -631,6 +653,8 @@ const App: React.FC = () => {
           onClose={() => setShowSettingsModal(false)}
           userState={userState}
           onUpdateUser={handleUpdateUserName}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
         <LibraryModal

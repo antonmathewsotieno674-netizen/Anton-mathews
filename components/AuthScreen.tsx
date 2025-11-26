@@ -46,8 +46,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 transition-colors">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors">
         <div className="bg-brand-600 p-8 text-center">
           <div className="w-16 h-16 bg-white rounded-xl mx-auto flex items-center justify-center text-brand-600 font-bold text-3xl mb-4 shadow-lg">N</div>
           <h1 className="text-2xl font-bold text-white mb-2">Welcome to {APP_NAME}</h1>
@@ -59,7 +59,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           <button 
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-all mb-6 focus:ring-2 focus:ring-slate-200"
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium py-2.5 px-4 rounded-lg transition-all mb-6 focus:ring-2 focus:ring-slate-200"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -72,23 +72,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">Or continue with</span>
+              <span className="px-2 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">Or continue with</span>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+          <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg mb-6">
             <button 
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'email' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'email' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
               onClick={() => setMethod('email')}
             >
               Email Address
             </button>
             <button 
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'phone' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${method === 'phone' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
               onClick={() => setMethod('phone')}
             >
               Phone Number
@@ -97,13 +97,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 {method === 'email' ? 'Email Address' : 'Phone Number'}
               </label>
               <input 
                 type={method === 'email' ? 'email' : 'tel'} 
                 required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
                 placeholder={method === 'email' ? 'name@example.com' : '07XX XXX XXX'}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
@@ -111,11 +111,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
               <input 
                 type="password" 
                 required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -127,7 +127,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </Button>
           </form>
 
-          <p className="mt-4 text-center text-xs text-slate-400">
+          <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-500">
             By signing in, you agree to our Terms of Service and Privacy Policy.
           </p>
         </div>
