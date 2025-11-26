@@ -12,10 +12,16 @@ interface PaymentModalProps {
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  
+  // Form State
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'airtel' | 'card' | 'paypal' | 'stripe'>('mpesa');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+
   const [isSuccess, setIsSuccess] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'airtel' | 'card' | 'paypal' | 'stripe'>('mpesa');
   const [statusMessage, setStatusMessage] = useState('');
 
   // Reset state when modal opens
@@ -25,6 +31,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setIsSuccess(false);
       setPhoneNumber('');
       setEmail('');
+      setCardNumber('');
+      setExpiry('');
+      setCvc('');
       setStatusMessage('');
       setProgress(0);
       setPaymentMethod('mpesa');
@@ -106,6 +115,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     return `${base} bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600 hover:border-slate-300 dark:hover:border-slate-500`;
   };
 
+  // Dynamic Validation Logic
+  const isFormValid = () => {
+    if (paymentMethod === 'mpesa' || paymentMethod === 'airtel') {
+      return phoneNumber.length >= 9;
+    }
+    if (paymentMethod === 'paypal') {
+      return email.includes('@') && email.includes('.');
+    }
+    if (paymentMethod === 'card' || paymentMethod === 'stripe') {
+      return cardNumber.length >= 12 && expiry.length >= 4 && cvc.length >= 3;
+    }
+    return false;
+  };
+
   if (isSuccess) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -129,21 +152,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
-      {/* 
-        Changes for responsive layout: 
-        1. max-h-[90vh] ensures it fits on screen.
-        2. flex flex-col allows internal scrolling.
-      */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300 border border-slate-100 dark:border-slate-700 relative">
         
-        {/* Processing Overlay - Absolute to cover everything */}
+        {/* Processing Overlay */}
         {isProcessing && (
           <div className="absolute inset-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
              <div className="w-20 h-20 mb-6 relative">
-                {/* Ping animation background */}
                 <div className="absolute inset-0 bg-brand-500/20 rounded-full animate-ping"></div>
-                
-                {/* Dynamic Icon based on stage */}
                 <div className="relative z-10 w-full h-full bg-brand-50 dark:bg-brand-900/40 rounded-full flex items-center justify-center border border-brand-200 dark:border-brand-700 shadow-lg text-brand-600 dark:text-brand-400">
                   {progress < 40 ? (
                     <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -160,7 +175,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                {statusMessage}
              </p>
 
-             {/* Progress Bar */}
              <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-700 ease-out relative"
@@ -191,7 +205,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               Only KSH {PREMIUM_PRICE_KSH} / session
             </div>
 
-            {/* Payment Method Selector - Scrollable & Snappy */}
+            {/* Payment Method Selector */}
             <div className="w-full overflow-x-auto pb-1 scrollbar-hide snap-x">
               <div className="flex gap-2 min-w-min px-1">
                   <button type="button" onClick={() => setPaymentMethod('mpesa')} className={getMethodStyle('mpesa')}>M-PESA</button>
@@ -202,7 +216,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </div>
             </div>
 
-            {/* Merchant Info Banner - Compact on mobile */}
+            {/* Merchant Info Banner */}
             <div className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center relative overflow-hidden group hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
               <div className="absolute top-0 right-0 w-16 h-16 bg-brand-500/5 rounded-bl-full -mr-8 -mt-8"></div>
               <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">
@@ -213,8 +227,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             </div>
           </div>
 
-          <form onSubmit={handlePayment} className="space-y-4">
-            {/* Dynamic Inputs based on Method */}
+          <form onSubmit={handlePayment} className="space-y-4 min-h-[140px]">
+            {/* Dynamic Inputs */}
             
             {(paymentMethod === 'mpesa' || paymentMethod === 'airtel') && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -272,6 +286,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                         placeholder="0000 0000 0000 0000"
                         className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none transition"
                         disabled={isProcessing}
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
                         />
                         <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
                     </div>
@@ -284,6 +300,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                         placeholder="MM/YY"
                         className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none transition"
                         disabled={isProcessing}
+                        value={expiry}
+                        onChange={(e) => setExpiry(e.target.value)}
                         />
                     </div>
                     <div className="flex-1">
@@ -293,6 +311,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                         placeholder="123"
                         className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none transition"
                         disabled={isProcessing}
+                        value={cvc}
+                        onChange={(e) => setCvc(e.target.value)}
                         />
                     </div>
                  </div>
@@ -313,7 +333,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 type="submit" 
                 className="flex-[2] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-brand-500/40 bg-brand-600 hover:bg-brand-700 disabled:hover:scale-100 disabled:active:scale-100 disabled:hover:shadow-none" 
                 isLoading={isProcessing}
-                disabled={(paymentMethod === 'mpesa' && phoneNumber.length !== 9)}
+                disabled={!isFormValid()}
               >
                 Verify Payment
               </Button>
