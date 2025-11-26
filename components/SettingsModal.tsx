@@ -499,6 +499,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                      <p className="text-sm text-slate-500 dark:text-slate-400">Version {APP_VERSION}</p>
                      <p className="text-xs text-slate-400 mt-1">© {new Date().getFullYear()} MOA AI. All rights reserved.</p>
                    </div>
+
+                   <div className="px-4 text-center">
+                     <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                       MOA AI is your intelligent study companion designed to help students analyze notes, extract tasks, and understand complex topics using advanced AI.
+                     </p>
+                   </div>
                    
                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
                       <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
