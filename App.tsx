@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
   
   // Custom Background State
   const [customBackground, setCustomBackground] = useState<string | undefined>(savedData?.customBackground);
@@ -186,6 +187,7 @@ const App: React.FC = () => {
     setMessages([]);
     setFile(null);
     setCustomBackground(undefined);
+    setShowSharePrompt(false);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -226,6 +228,7 @@ const App: React.FC = () => {
     setIsProcessingFile(true);
     setUploadProgress(0);
     setMessages([]); // Clear previous context on new upload
+    setShowSharePrompt(false); // Reset prompt
     
     // Simulate progress
     const progressInterval = setInterval(() => {
@@ -263,6 +266,7 @@ const App: React.FC = () => {
         });
         
         setMessages(prev => [...prev, { role: 'model', text: `I've successfully extracted the text from "${selectedFile.name}". You can now ask questions about it.` }]);
+        setShowSharePrompt(true); // Prompt to share after success
       } else {
         setProcessingStatus('Reading document...');
         const textContent = await parseFileContent(selectedFile);
@@ -275,6 +279,7 @@ const App: React.FC = () => {
         });
         
         setMessages(prev => [...prev, { role: 'model', text: `I've analyzed your document "${selectedFile.name}". Ask me anything about it!` }]);
+        setShowSharePrompt(true); // Prompt to share after success
       }
     } catch (error: any) {
       console.error("File upload error:", error);
@@ -333,6 +338,7 @@ const App: React.FC = () => {
       localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libraryItems));
       
       setIsPublishing(false);
+      setShowSharePrompt(false); // Hide prompt after sharing
       alert('Successfully published to Community Library! Other users can now find your notes.');
     }, 1500);
   };
@@ -342,6 +348,7 @@ const App: React.FC = () => {
     setIsProcessingFile(true);
     setUploadProgress(0);
     setProcessingStatus('Importing from library...');
+    setShowSharePrompt(false); // Don't ask to share imported notes
 
     // Simulate network/processing delay to make it feel like a fresh upload
     let progress = 0;
@@ -613,25 +620,58 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Share to Library Button */}
+                  {/* Share to Library Section */}
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                    <button 
-                      onClick={handlePublishToLibrary}
-                      disabled={isPublishing}
-                      className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                    >
-                      {isPublishing ? (
-                        <>
-                          <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                          Publishing...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                          Share to Community
-                        </>
-                      )}
-                    </button>
+                    {showSharePrompt ? (
+                      <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-xl border border-brand-200 dark:border-brand-800 animate-in zoom-in duration-300">
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="p-1.5 bg-white dark:bg-brand-900/50 rounded-full text-brand-600 shrink-0 shadow-sm">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">Share with Community?</h4>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-tight">
+                              Would you like to publish this note to the library for others?
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button 
+                            onClick={handlePublishToLibrary}
+                            disabled={isPublishing}
+                            className="flex-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1"
+                          >
+                            {isPublishing ? 'Sharing...' : 'Yes, Share'}
+                          </button>
+                          <button 
+                            onClick={() => setShowSharePrompt(false)}
+                            className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs font-medium rounded-lg transition-colors"
+                          >
+                            No thanks
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={handlePublishToLibrary}
+                        disabled={isPublishing}
+                        className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                      >
+                        {isPublishing ? (
+                          <>
+                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Publishing...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                            Share to Community
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
