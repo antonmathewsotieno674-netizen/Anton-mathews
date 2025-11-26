@@ -9,6 +9,10 @@ export const LIBRARY_STORAGE_KEY = "MOA_PUBLIC_LIBRARY_V1";
 // 2 Months in milliseconds (approx 60 days)
 export const PREMIUM_VALIDITY_MS = 60 * 24 * 60 * 60 * 1000; 
 
+// Rate Limiting
+export const FREE_QUESTIONS_LIMIT = 5;
+export const USAGE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 export const SYSTEM_INSTRUCTION = `You are MOA AI, an intelligent study assistant. 
 Your goal is to help users understand their uploaded notes. 
 Answer questions strictly based on the provided context if possible. 

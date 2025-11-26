@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { PREMIUM_PRICE_KSH } from '../constants';
 
@@ -11,6 +11,16 @@ interface PaymentModalProps {
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsProcessing(false);
+      setIsSuccess(false);
+      setPhoneNumber('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -21,9 +31,34 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
     // Simulate API call to MPESA/Payment Gateway
     setTimeout(() => {
       setIsProcessing(false);
-      onSuccess();
+      setIsSuccess(true);
     }, 2000);
   };
+
+  const handleComplete = () => {
+    onSuccess();
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center animate-in zoom-in duration-300 border border-white/20">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Payment Successful!</h2>
+          <p className="text-slate-600 mb-8 leading-relaxed">
+            Premium access is now active. You can enjoy unlimited questions and deep analysis on all your notes.
+          </p>
+          <Button onClick={handleComplete} className="w-full py-3 text-lg shadow-lg shadow-brand-500/30">
+            Start Learning
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">

@@ -47,6 +47,7 @@ export interface UserState {
   hasPaid: boolean;
   premiumExpiryDate?: number; // Timestamp in milliseconds
   paymentHistory: PaymentRecord[];
+  questionUsage: number[]; // Array of timestamps for rate limiting
 }
 
 // PWA Install Prompt Event

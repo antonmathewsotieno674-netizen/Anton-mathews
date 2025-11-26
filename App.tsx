@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
-import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH } from './constants';
+import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
@@ -45,7 +45,8 @@ const App: React.FC = () => {
     isPremium: false, 
     hasPaid: false,
     premiumExpiryDate: undefined,
-    paymentHistory: []
+    paymentHistory: [],
+    questionUsage: []
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -133,11 +134,23 @@ const App: React.FC = () => {
   const { isListening, toggleListening, hasSupport } = useSpeechRecognition({ onResult: handleSpeechResult });
 
   const handleLogin = (user: User) => {
-    setUserState(prev => ({ ...prev, user, paymentHistory: prev.paymentHistory || [] }));
+    setUserState(prev => ({ 
+      ...prev, 
+      user, 
+      paymentHistory: prev.paymentHistory || [],
+      questionUsage: prev.questionUsage || [] 
+    }));
   };
 
   const handleLogout = () => {
-    setUserState({ user: null, isPremium: false, hasPaid: false, premiumExpiryDate: undefined, paymentHistory: [] });
+    setUserState({ 
+      user: null, 
+      isPremium: false, 
+      hasPaid: false, 
+      premiumExpiryDate: undefined, 
+      paymentHistory: [], 
+      questionUsage: [] 
+    });
     setMessages([]);
     setFile(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -306,10 +319,26 @@ const App: React.FC = () => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // MONETIZATION CHECK
-    if (!userState.hasPaid && messages.length >= 1) {
-      setShowPaymentModal(true);
-      return;
+    // MONETIZATION & RATE LIMIT CHECK
+    if (!userState.isPremium) {
+      const now = Date.now();
+      const oneHourAgo = now - USAGE_WINDOW_MS;
+      
+      // Filter out usage records older than 1 hour
+      const recentUsage = (userState.questionUsage || []).filter(timestamp => timestamp > oneHourAgo);
+      
+      if (recentUsage.length >= FREE_QUESTIONS_LIMIT) {
+        setShowPaymentModal(true);
+        // Optionally show a message in chat or alert
+        // alert("You've reached the limit of 5 questions per hour. Please upgrade to Premium.");
+        return;
+      }
+
+      // Update usage state
+      setUserState(prev => ({
+        ...prev,
+        questionUsage: [...recentUsage, now]
+      }));
     }
 
     const userMessage = input.trim();
@@ -513,7 +542,7 @@ const App: React.FC = () => {
                 <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl p-5 text-white shadow-lg relative overflow-hidden flex-shrink-0">
                   <div className="relative z-10">
                     <h3 className="font-bold text-lg mb-1">Go Premium</h3>
-                    <p className="text-indigo-100 text-xs mb-3">Unlimited questions & deep analysis.</p>
+                    <p className="text-indigo-100 text-xs mb-3">Limit reached? Get unlimited questions.</p>
                     <Button variant="secondary" onClick={() => setShowPaymentModal(true)} className="w-full text-sm py-1.5 bg-white text-indigo-700 hover:bg-indigo-50 shadow-none border-0">
                       Unlock for KSH 20
                     </Button>
