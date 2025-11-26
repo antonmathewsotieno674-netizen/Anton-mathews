@@ -1,13 +1,15 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
+import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
-import { generateResponse, performOCR, generateWallpaper } from './services/geminiService';
+import { generateResponse, performOCR, generateWallpaper, extractTasks } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
 import { InteractiveBackground } from './components/InteractiveBackground';
+import { TaskManagerModal } from './components/TaskManagerModal';
 import { parseFileContent } from './utils/fileParsing';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
@@ -42,6 +44,10 @@ const App: React.FC = () => {
   const [customBackground, setCustomBackground] = useState<string | undefined>(savedData?.customBackground);
   const [isGeneratingBg, setIsGeneratingBg] = useState(false);
 
+  // Model Mode State
+  const [modelMode, setModelMode] = useState<ModelMode>('standard');
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | undefined>(undefined);
+
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof localStorage !== 'undefined') {
@@ -55,6 +61,11 @@ const App: React.FC = () => {
   // Settings Modal State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community'>('profile');
+
+  // Task Manager State
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [tasks, setTasks] = useState<ActionItem[]>([]);
+  const [isExtractingTasks, setIsExtractingTasks] = useState(false);
 
   // Apply Theme
   useEffect(() => {
@@ -146,6 +157,25 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Request Location when Maps mode is selected
+  useEffect(() => {
+    if (modelMode === 'maps' && !userLocation) {
+       if (navigator.geolocation) {
+         navigator.geolocation.getCurrentPosition(
+           (position) => {
+             setUserLocation({
+               lat: position.coords.latitude,
+               lng: position.coords.longitude
+             });
+           },
+           (error) => {
+             console.warn("Location access denied or failed", error);
+           }
+         );
+       }
+    }
+  }, [modelMode, userLocation]);
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
@@ -210,6 +240,20 @@ const App: React.FC = () => {
       alert("Could not generate background at this time. Please try again.");
     } finally {
       setIsGeneratingBg(false);
+    }
+  };
+
+  const handleExtractTasks = async () => {
+    setShowTaskModal(true);
+    setIsExtractingTasks(true);
+    setTasks([]); // Clear previous
+    try {
+      const extractedTasks = await extractTasks(file, messages);
+      setTasks(extractedTasks);
+    } catch (error) {
+      console.error("Task extraction failed", error);
+    } finally {
+      setIsExtractingTasks(false);
     }
   };
 
@@ -282,10 +326,8 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error("File upload error:", error);
-      
       let errorText = `Sorry, I couldn't read the file "${selectedFile.name}". It might be corrupted or in an unsupported format.`;
       
-      // Customize based on known error messages
       if (error.message && typeof error.message === 'string') {
         if (error.message.includes('too large')) {
           errorText = `The file "${selectedFile.name}" is too large (over 15MB). Please try a smaller file or split it into sections.`;
@@ -324,32 +366,30 @@ const App: React.FC = () => {
       category: 'General',
       fileContent: file.content,
       fileType: file.type,
-      originalImage: file.originalImage, // Persist image if available
+      originalImage: file.originalImage, 
       date: new Date().toISOString().split('T')[0],
       downloads: 0
     };
 
-    // Simulate saving to shared storage
     setTimeout(() => {
       const savedLibrary = localStorage.getItem(LIBRARY_STORAGE_KEY);
       let libraryItems: LibraryItem[] = savedLibrary ? JSON.parse(savedLibrary) : [...INITIAL_LIBRARY_DATA];
-      libraryItems.unshift(newItem); // Add to top
+      libraryItems.unshift(newItem); 
       localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libraryItems));
       
       setIsPublishing(false);
-      setShowSharePrompt(false); // Hide prompt after sharing
+      setShowSharePrompt(false); 
       alert('Successfully published to Community Library! Other users can now find your notes.');
     }, 1500);
   };
 
   const handleImportFromLibrary = (item: LibraryItem) => {
-    setShowSettingsModal(false); // Close settings
+    setShowSettingsModal(false); 
     setIsProcessingFile(true);
     setUploadProgress(0);
     setProcessingStatus('Importing from library...');
-    setShowSharePrompt(false); // Don't ask to share imported notes
+    setShowSharePrompt(false); 
 
-    // Simulate network/processing delay to make it feel like a fresh upload
     let progress = 0;
     const interval = setInterval(() => {
       progress += 20;
@@ -357,7 +397,6 @@ const App: React.FC = () => {
       if (progress >= 100) {
         clearInterval(interval);
         
-        // Actual state update
         setFile({
           name: item.title,
           type: item.fileType,
@@ -379,12 +418,9 @@ const App: React.FC = () => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // MONETIZATION & RATE LIMIT CHECK
     if (!userState.isPremium) {
       const now = Date.now();
       const oneHourAgo = now - USAGE_WINDOW_MS;
-      
-      // Filter out usage records older than 1 hour
       const recentUsage = (userState.questionUsage || []).filter(timestamp => timestamp > oneHourAgo);
       
       if (recentUsage.length >= FREE_QUESTIONS_LIMIT) {
@@ -392,7 +428,6 @@ const App: React.FC = () => {
         return;
       }
 
-      // Update usage state
       setUserState(prev => ({
         ...prev,
         questionUsage: [...recentUsage, now]
@@ -405,8 +440,13 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const aiResponse = await generateResponse(messages, userMessage, file);
-      setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+      const { text, groundingLinks } = await generateResponse(messages, userMessage, file, modelMode, userLocation);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: text,
+        groundingLinks: groundingLinks,
+        modelMode: modelMode
+      }]);
     } catch (error) {
       console.error("AI Error:", error);
       setMessages(prev => [...prev, { 
@@ -455,7 +495,6 @@ const App: React.FC = () => {
     setShowSettingsModal(true);
   };
 
-  // Helper to get days remaining on premium
   const getDaysRemaining = () => {
     if (!userState.premiumExpiryDate) return 0;
     const diff = userState.premiumExpiryDate - Date.now();
@@ -463,10 +502,8 @@ const App: React.FC = () => {
   };
 
   const daysRemaining = getDaysRemaining();
-  // Show warning if premium and expiring in 7 days or less
   const showRenewalWarning = userState.isPremium && daysRemaining <= 7 && daysRemaining > 0;
 
-  // If not logged in, show Auth Screen
   if (!userState.user) {
     return <AuthScreen onLogin={handleLogin} />;
   }
@@ -475,16 +512,26 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen relative bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <InteractiveBackground backgroundImage={customBackground} />
       
-      {/* Main Content Wrapper - Glass Effect */}
       <div className="relative z-10 flex flex-col h-screen bg-white/30 dark:bg-slate-900/40 backdrop-blur-sm">
         
-        {/* Header */}
         <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-white/50 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm transition-colors">
           <div className="flex items-center gap-2">
              <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-brand-500/30 shadow-lg">M</div>
              <h1 className="font-bold text-xl text-slate-800 dark:text-white tracking-tight">{APP_NAME}</h1>
           </div>
           <div className="flex items-center gap-4">
+            
+            <button 
+              onClick={handleExtractTasks}
+              className="hidden sm:flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 font-medium text-sm transition-colors"
+              title="Create Tasks from Notes"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span>Tasks</span>
+            </button>
+
             <button 
               onClick={() => openSettingsTo('profile')}
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
@@ -508,7 +555,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Premium Expiry Warning Banner */}
         {showRenewalWarning && (
           <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-6 py-2 text-sm font-medium flex justify-between items-center border-b border-amber-200 dark:border-amber-800 animate-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
@@ -526,14 +572,11 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Main Content */}
         <main className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full overflow-hidden">
           
-          {/* Left Sidebar: File Upload & Contacts */}
           <div className="w-full md:w-80 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-r border-white/50 dark:border-slate-700 p-6 flex flex-col z-10 overflow-y-auto transition-colors">
             <div className="flex-1">
               
-              {/* Install PWA Button */}
               {deferredPrompt && (
                 <div className="mb-6 animate-fade-in-up">
                    <button 
@@ -584,10 +627,6 @@ const App: React.FC = () => {
                     </>
                   )}
                 </div>
-                {/* 
-                  accept attribute is broad to allow OS file pickers (which handle Drive/Cloud integrations) 
-                  to show all compatible files.
-                */}
                 <input 
                   type="file" 
                   className="hidden" 
@@ -597,7 +636,6 @@ const App: React.FC = () => {
                 />
               </label>
 
-              {/* Share Prompt (Conditional) */}
               {showSharePrompt && file && (
                 <div className="mb-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 animate-in slide-in-from-left-2">
                    <div className="flex items-start gap-3">
@@ -629,7 +667,6 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {/* Library Access Button */}
               <button 
                 onClick={() => openSettingsTo('library')}
                 className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all font-medium text-sm"
@@ -649,23 +686,49 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Area: Chat Interface */}
           <div className="flex-1 flex flex-col relative h-full overflow-hidden">
             <ChatInterface messages={messages} isLoading={isLoading} />
 
-            {/* Message Input */}
             <div className="p-4 md:p-6 pb-6 border-t border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md relative z-10 transition-colors">
+              
+              {/* Model Mode Selector */}
+              <div className="max-w-4xl mx-auto mb-2 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                 <button 
+                   onClick={() => setModelMode('standard')}
+                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'standard' ? 'bg-brand-100 border-brand-300 text-brand-700 dark:bg-brand-900/40 dark:border-brand-700 dark:text-brand-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
+                 >
+                   ✨ Standard
+                 </button>
+                 <button 
+                   onClick={() => setModelMode('fast')}
+                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'fast' ? 'bg-yellow-100 border-yellow-300 text-yellow-700 dark:bg-yellow-900/40 dark:border-yellow-700 dark:text-yellow-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
+                 >
+                   ⚡ Fast (Lite)
+                 </button>
+                 <button 
+                   onClick={() => setModelMode('thinking')}
+                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'thinking' ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/40 dark:border-purple-700 dark:text-purple-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
+                 >
+                   🧠 Deep Think
+                 </button>
+                 <button 
+                   onClick={() => setModelMode('maps')}
+                   className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'maps' ? 'bg-green-100 border-green-300 text-green-700 dark:bg-green-900/40 dark:border-green-700 dark:text-green-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
+                 >
+                   🗺️ Maps Grounding
+                 </button>
+              </div>
+
               <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto flex gap-2">
                 <div className="relative flex-1">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={file ? `Ask a question about "${file.name}"...` : "Upload a note to start asking questions..."}
+                    placeholder={file ? `Ask about "${file.name}"...` : "Upload a note or ask a question..."}
                     className="w-full pl-4 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-100"
                   />
                   
-                  {/* Microphone Button */}
                   {hasSupport && (
                     <button
                       type="button"
@@ -723,6 +786,13 @@ const App: React.FC = () => {
         isGeneratingBackground={isGeneratingBg}
         onImport={handleImportFromLibrary}
         initialTab={settingsInitialTab}
+      />
+
+      <TaskManagerModal
+        isOpen={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+        tasks={tasks}
+        isLoading={isExtractingTasks}
       />
     </div>
   );

@@ -1,5 +1,6 @@
+
 import React, { useRef, useEffect, useState } from 'react';
-import { Message } from '../types';
+import { Message, GroundingLink } from '../types';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -10,7 +11,7 @@ const CopyButton: React.FC<{ text: string, className?: string }> = ({ text, clas
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering other click events
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
       setIsCopied(true);
@@ -23,10 +24,10 @@ const CopyButton: React.FC<{ text: string, className?: string }> = ({ text, clas
   return (
     <button 
       onClick={handleCopy}
-      className={`p-1.5 rounded-full transition-all duration-200 ${
+      className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
         isCopied 
           ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 opacity-100' 
-          : 'bg-black/5 dark:bg-white/10 text-slate-400 hover:text-brand-600 dark:text-slate-500 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20'
+          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/50 dark:hover:bg-slate-700 text-slate-400 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400'
       } ${className}`}
       title={isCopied ? "Copied!" : "Copy text"}
       aria-label="Copy text"
@@ -115,15 +116,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
               className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm transition-colors relative ${
                 msg.role === 'user' 
                   ? 'bg-brand-600 text-white rounded-tr-none' 
-                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-none pr-10' // Added padding-right for AI messages to avoid overlap with copy button
+                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-none pr-8 md:pr-5'
               } ${msg.isError ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400' : ''}`}
             >
               {msg.role === 'model' && (
-                <div className="font-semibold text-xs text-slate-400 dark:text-slate-500 mb-1 uppercase tracking-wider select-none">MOA AI</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="font-semibold text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider select-none">MOA AI</div>
+                  {msg.modelMode === 'fast' && <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded">⚡ Fast</span>}
+                  {msg.modelMode === 'thinking' && <span className="text-[10px] bg-purple-100 text-purple-800 px-1 rounded">🧠 Thought</span>}
+                  {msg.modelMode === 'maps' && <span className="text-[10px] bg-green-100 text-green-800 px-1 rounded">🗺️ Maps</span>}
+                </div>
               )}
               
               <div className="whitespace-pre-wrap">
-                {/* Visual Error Icon */}
                 {msg.isError && (
                   <svg className="w-4 h-4 mr-2 inline-block -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -132,25 +137,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
                 {msg.text}
               </div>
 
-              {/* Individual Copy Button */}
-              {/* Positioned differently based on role to look good */}
-              <div className={`absolute top-2 ${msg.role === 'user' ? '-left-8' : 'right-2'} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                <CopyButton 
-                   text={msg.text} 
-                   className={msg.role === 'user' ? 'bg-white/20 hover:bg-white/30 text-white' : ''} 
-                />
+              {/* Render Grounding Links / Sources if available */}
+              {msg.groundingLinks && msg.groundingLinks.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Sources & Locations:</p>
+                   <ul className="space-y-1">
+                     {msg.groundingLinks.map((link, idx) => (
+                       <li key={idx}>
+                         <a 
+                           href={link.uri} 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           className="flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+                         >
+                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                           {link.title || 'View on Google Maps'}
+                         </a>
+                       </li>
+                     ))}
+                   </ul>
+                </div>
+              )}
+
+              <div 
+                className={`absolute top-2 hidden md:block opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${
+                  msg.role === 'user' ? '-left-10' : '-right-10'
+                }`}
+              >
+                <CopyButton text={msg.text} />
               </div>
               
-              {/* Mobile-friendly always-visible copy button for user messages (since hover doesn't work well on touch) */}
               {msg.role === 'user' && (
                  <div className="md:hidden absolute -left-8 top-2">
                     <CopyButton text={msg.text} className="bg-white/10 text-slate-500 dark:text-slate-400" />
                  </div>
               )}
-               {/* Mobile-friendly always-visible copy button for AI messages */}
               {msg.role === 'model' && (
                  <div className="md:hidden absolute top-2 right-2">
-                    <CopyButton text={msg.text} />
+                    <CopyButton text={msg.text} className="bg-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50" />
                  </div>
               )}
 
@@ -161,16 +185,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
         {isLoading && (
           <div className="flex justify-start w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="relative bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-3 transition-colors overflow-hidden">
-               {/* Shimmer overlay */}
                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-100/50 dark:via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
-               
-               {/* Animated Dots */}
                <div className="flex gap-1">
                  <div className="w-2 h-2 bg-brand-400 rounded-full animate-[pulse_1s_ease-in-out_infinite]"></div>
                  <div className="w-2 h-2 bg-brand-500 rounded-full animate-[pulse_1s_ease-in-out_infinite_200ms]"></div>
                  <div className="w-2 h-2 bg-brand-600 rounded-full animate-[pulse_1s_ease-in-out_infinite_400ms]"></div>
                </div>
-               
                <span className="text-xs font-medium text-slate-400 dark:text-slate-500 animate-pulse">
                  MOA AI is thinking...
                </span>

@@ -1,13 +1,20 @@
+
 import { GoogleGenAI, Content, Part } from "@google/genai";
-import { GEMINI_MODEL_TEXT, GEMINI_MODEL_VISION, SYSTEM_INSTRUCTION } from "../constants";
-import { UploadedFile, Message } from "../types";
+import { 
+  GEMINI_MODEL_STANDARD, 
+  GEMINI_MODEL_FAST, 
+  GEMINI_MODEL_THINKING, 
+  GEMINI_MODEL_MAPS,
+  GEMINI_MODEL_VISION, 
+  SYSTEM_INSTRUCTION 
+} from "../constants";
+import { UploadedFile, Message, ActionItem, ModelMode, GroundingLink } from "../types";
 
 // Initialize the client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Generates an abstract AI background wallpaper.
- * Switched to gemini-2.5-flash-image for better availability and to avoid 404 errors.
  */
 export const generateWallpaper = async (): Promise<string> => {
   try {
@@ -25,7 +32,6 @@ export const generateWallpaper = async (): Promise<string> => {
       },
     });
 
-    // Iterate through parts to find the image
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/jpeg;base64,${part.inlineData.data}`;
@@ -43,7 +49,6 @@ export const generateWallpaper = async (): Promise<string> => {
  */
 export const performOCR = async (file: File): Promise<string> => {
   try {
-    // Convert file to base64
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -78,19 +83,60 @@ export const performOCR = async (file: File): Promise<string> => {
   }
 };
 
+/**
+ * Generates response based on selected mode.
+ */
 export const generateResponse = async (
   history: Message[],
   currentQuery: string,
-  file: UploadedFile | null
-): Promise<string> => {
+  file: UploadedFile | null,
+  mode: ModelMode = 'standard',
+  location?: { lat: number; lng: number }
+): Promise<{ text: string, groundingLinks?: GroundingLink[] }> => {
   try {
-    const model = GEMINI_MODEL_TEXT;
+    let modelName = GEMINI_MODEL_STANDARD;
+    let config: any = {
+      systemInstruction: SYSTEM_INSTRUCTION,
+    };
 
-    // Construct the chat history for the API
+    // Configure based on Mode
+    switch (mode) {
+      case 'fast':
+        modelName = GEMINI_MODEL_FAST;
+        break;
+      case 'thinking':
+        modelName = GEMINI_MODEL_THINKING;
+        config = {
+          ...config,
+          thinkingConfig: { thinkingBudget: 32768 } // Max budget for pro
+        };
+        break;
+      case 'maps':
+        modelName = GEMINI_MODEL_MAPS;
+        config = {
+          ...config,
+          tools: [{ googleMaps: {} }]
+        };
+        // Add location if available
+        if (location) {
+          config.toolConfig = {
+            retrievalConfig: {
+              latLng: {
+                latitude: location.lat,
+                longitude: location.lng
+              }
+            }
+          };
+        }
+        break;
+      default:
+        modelName = GEMINI_MODEL_STANDARD;
+    }
+
+    // Construct content
     let parts: Part[] = [{ text: currentQuery }];
     let contents: Content[] = [];
 
-    // Transform app history to API history
     const previousHistory: Content[] = history.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.text }]
@@ -100,7 +146,6 @@ export const generateResponse = async (
 
     if (file) {
       if (file.category === 'image' && !file.originalImage) {
-        // Pure image upload (fallback if OCR wasn't used)
         const base64Data = file.content.split(',')[1]; 
         parts.unshift({
           inlineData: {
@@ -110,8 +155,6 @@ export const generateResponse = async (
         });
         parts.unshift({ text: "Here is the image file I uploaded for reference: " });
       } else {
-        // Text file or OCR'd Text
-        // If it was an image originally, file.originalImage will be present, but file.content is the OCR text.
         parts.unshift({ text: `\n\n--- BEGIN UPLOADED NOTE CONTENT (${file.name}) ---\n${file.content}\n--- END NOTE CONTENT ---\n\nBased on the note above: ` });
       }
     }
@@ -119,17 +162,84 @@ export const generateResponse = async (
     contents.push({ role: 'user', parts: parts });
 
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: contents,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-      }
+      config: config
     });
 
-    return response.text || "I couldn't generate a response based on that input.";
+    let finalText = response.text || "I couldn't generate a response based on that input.";
+    let groundingLinks: GroundingLink[] = [];
+
+    // Extract Maps Grounding Links
+    if (mode === 'maps' && response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+      response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+        if (chunk.web?.uri && chunk.web?.title) {
+          groundingLinks.push({ title: chunk.web.title, uri: chunk.web.uri });
+        }
+      });
+    }
+
+    return { text: finalText, groundingLinks };
 
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw new Error("Failed to get response from AI. Please try again.");
+  }
+};
+
+/**
+ * Extracts actionable tasks.
+ */
+export const extractTasks = async (
+  file: UploadedFile | null,
+  history: Message[]
+): Promise<ActionItem[]> => {
+  try {
+    const model = GEMINI_MODEL_STANDARD;
+    
+    let contextText = "";
+    if (file && file.category === 'text') {
+      contextText += `Note Content: ${file.content.substring(0, 10000)}... (truncated)\n`;
+    }
+    
+    const chatHistory = history.map(m => `${m.role}: ${m.text}`).join('\n');
+    contextText += `\nChat History:\n${chatHistory}`;
+
+    const prompt = `Analyze the provided notes and chat history. Identify actionable tasks, study goals, or to-do items. 
+    Return a JSON object with a key 'tasks' containing an array of strings. 
+    If no clear tasks exist, suggest 3-5 relevant study tasks based on the content.
+    Example JSON: { "tasks": ["Review chapter 1", "Practice calculus problems"] }`;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: [
+        { role: 'user', parts: [{ text: contextText }, { text: prompt }] }
+      ],
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return [];
+
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.tasks && Array.isArray(parsed.tasks)) {
+        return parsed.tasks.map((task: string, index: number) => ({
+          id: `task_${Date.now()}_${index}`,
+          content: task,
+          isCompleted: false
+        }));
+      }
+    } catch (e) {
+      console.warn("Failed to parse JSON task response", e);
+    }
+    
+    return [];
+
+  } catch (error) {
+    console.error("Task Extraction Error:", error);
+    throw new Error("Failed to extract tasks.");
   }
 };

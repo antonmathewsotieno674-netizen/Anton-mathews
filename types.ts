@@ -1,8 +1,17 @@
 
+export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps';
+
+export interface GroundingLink {
+  title: string;
+  uri: string;
+}
+
 export interface Message {
   role: 'user' | 'model';
   text: string;
   isError?: boolean;
+  groundingLinks?: GroundingLink[];
+  modelMode?: ModelMode; // Track which mode generated this
 }
 
 export interface UploadedFile {
@@ -48,6 +57,12 @@ export interface UserState {
   premiumExpiryDate?: number; // Timestamp in milliseconds
   paymentHistory: PaymentRecord[];
   questionUsage: number[]; // Array of timestamps for rate limiting
+}
+
+export interface ActionItem {
+  id: string;
+  content: string;
+  isCompleted: boolean;
 }
 
 // PWA Install Prompt Event
