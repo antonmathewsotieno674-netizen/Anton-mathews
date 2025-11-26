@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 
 interface InteractiveBackgroundProps {
@@ -6,7 +7,6 @@ interface InteractiveBackgroundProps {
 
 export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ backgroundImage }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Handle global mouse movement for both Canvas and Image Parallax
@@ -165,20 +165,23 @@ export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ ba
     // --- IMAGEN PARALLAX BACKGROUND ---
     // Moving opposite to mouse for depth effect
     // Scale is 110% to prevent edges showing during movement
+    // Smooth transition for mouse movement
     const transformStyle = {
-      transform: `translate3d(${mousePos.x * -20}px, ${mousePos.y * -20}px, 0) scale(1.1)`,
+      transform: `translate3d(${mousePos.x * -15}px, ${mousePos.y * -15}px, 0) scale(1.1)`,
       backgroundImage: `url(${backgroundImage})`,
     };
 
     return (
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-slate-900">
          <div 
-           className="absolute inset-[-5%] w-[110%] h-[110%] bg-cover bg-center transition-transform duration-100 ease-out opacity-80"
+           className="absolute inset-[-5%] w-[110%] h-[110%] bg-cover bg-center transition-transform duration-300 ease-out opacity-90"
            style={transformStyle}
          />
-         <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]"></div>
+         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"></div>
          {/* Vignette */}
          <div className="absolute inset-0 bg-[radial-gradient(transparent_40%,rgba(2,6,23,0.8)_100%)]"></div>
+         {/* Subtle overlay texture/grid for 'tech' feel */}
+         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] opacity-30"></div>
       </div>
     );
   }
