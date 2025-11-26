@@ -1,3 +1,4 @@
+
 export interface Message {
   role: 'user' | 'model';
   text: string;
@@ -9,6 +10,7 @@ export interface UploadedFile {
   type: string;
   content: string; // Base64 for images, text string for text files
   category: 'image' | 'text';
+  originalImage?: string; // Keep original base64 for display if OCR was performed
 }
 
 export interface User {

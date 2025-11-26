@@ -1,10 +1,51 @@
+
 import { GoogleGenAI, Content, Part } from "@google/genai";
-import { GEMINI_MODEL_TEXT, SYSTEM_INSTRUCTION } from "../constants";
+import { GEMINI_MODEL_TEXT, GEMINI_MODEL_VISION, SYSTEM_INSTRUCTION } from "../constants";
 import { UploadedFile, Message } from "../types";
 
 // Initialize the client
 // NOTE: Process.env.API_KEY is handled by the build/runtime environment automatically.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+/**
+ * Extracts text from an image file using Gemini Vision capabilities (OCR).
+ */
+export const performOCR = async (file: File): Promise<string> => {
+  try {
+    // Convert file to base64
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+    });
+
+    const base64String = base64Data.split(',')[1];
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL_VISION,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: file.type,
+                data: base64String
+              }
+            },
+            { text: "Please transcribe all the text found in this image exactly as it appears. If the image contains handwriting, try your best to read it. If there is no text, describe the image in detail suitable for study notes. Output only the extracted text or description." }
+          ]
+        }
+      ]
+    });
+
+    return response.text || "No text could be extracted from this image.";
+  } catch (error) {
+    console.error("OCR Error:", error);
+    throw new Error("Failed to extract text from image.");
+  }
+};
 
 export const generateResponse = async (
   history: Message[],
@@ -15,8 +56,6 @@ export const generateResponse = async (
     const model = GEMINI_MODEL_TEXT;
 
     // Construct the chat history for the API
-    // We treat the file as part of the context of the conversation
-    
     let parts: Part[] = [{ text: currentQuery }];
     let contents: Content[] = [];
 
@@ -28,14 +67,9 @@ export const generateResponse = async (
 
     contents = [...previousHistory];
 
-    // If there is a file, we need to inject it into the context effectively.
-    // For this simple implementation, if a file exists, we attach it to the latest prompt 
-    // or system instruction logic if it hasn't been "seen" yet. 
-    // To keep it stateless and robust, we attach the file data to the user's turn if provided.
-    
     if (file) {
-      if (file.category === 'image') {
-        // Remove the data URL prefix for the API
+      if (file.category === 'image' && !file.originalImage) {
+        // Pure image upload (fallback if OCR wasn't used)
         const base64Data = file.content.split(',')[1]; 
         parts.unshift({
           inlineData: {
@@ -45,7 +79,8 @@ export const generateResponse = async (
         });
         parts.unshift({ text: "Here is the image file I uploaded for reference: " });
       } else {
-        // Text file
+        // Text file or OCR'd Text
+        // If it was an image originally, file.originalImage will be present, but file.content is the OCR text.
         parts.unshift({ text: `\n\n--- BEGIN UPLOADED NOTE CONTENT (${file.name}) ---\n${file.content}\n--- END NOTE CONTENT ---\n\nBased on the note above: ` });
       }
     }

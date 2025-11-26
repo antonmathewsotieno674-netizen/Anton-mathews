@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback } from 'react';
 import { UploadedFile, Message, UserState, User } from './types';
 import { APP_NAME } from './constants';
-import { generateResponse } from './services/geminiService';
+import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { ChatInterface } from './components/ChatInterface';
@@ -9,6 +10,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { ContactSection } from './components/ContactSection';
 import { InteractiveBackground } from './components/InteractiveBackground';
 import { parseFileContent } from './utils/fileParsing';
+import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
 const App: React.FC = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);
@@ -16,6 +18,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   
   // User State including Authentication
   const [userState, setUserState] = useState<UserState>({ 
@@ -25,6 +28,16 @@ const App: React.FC = () => {
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Speech Recognition Handler
+  const handleSpeechResult = useCallback((text: string) => {
+    setInput(prev => {
+      const spacer = prev.length > 0 && !prev.endsWith(' ') ? ' ' : '';
+      return prev + spacer + text;
+    });
+  }, []);
+
+  const { isListening, toggleListening, hasSupport } = useSpeechRecognition({ onResult: handleSpeechResult });
 
   const handleLogin = (user: User) => {
     setUserState(prev => ({ ...prev, user }));
@@ -41,23 +54,37 @@ const App: React.FC = () => {
     if (!selectedFile) return;
 
     setIsProcessingFile(true);
+    setMessages([]); // Clear previous context on new upload
 
     try {
       if (selectedFile.type.startsWith('image/')) {
+        setProcessingStatus('Extracting text from image...');
+        
+        // get base64 for display
         const reader = new FileReader();
-        reader.onload = (event) => {
-          setFile({
-            name: selectedFile.name,
-            type: selectedFile.type,
-            content: event.target?.result as string,
-            category: 'image'
-          });
-          setMessages(prev => [...prev, { role: 'model', text: `I've received your image "${selectedFile.name}". You can now ask me questions about it.` }]);
-          setIsProcessingFile(false);
-        };
         reader.readAsDataURL(selectedFile);
+        
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+        });
+
+        const [extractedText, base64Image] = await Promise.all([
+          performOCR(selectedFile),
+          base64Promise
+        ]);
+
+        setFile({
+          name: selectedFile.name,
+          type: selectedFile.type,
+          content: extractedText,
+          category: 'text', // We treat extracted text as text category
+          originalImage: base64Image
+        });
+        
+        setMessages(prev => [...prev, { role: 'model', text: `I've successfully extracted the text from "${selectedFile.name}". You can now ask questions about it.` }]);
       } else {
         // Handle PDF, Word, and Text
+        setProcessingStatus('Reading document...');
         const textContent = await parseFileContent(selectedFile);
         
         setFile({
@@ -68,12 +95,13 @@ const App: React.FC = () => {
         });
         
         setMessages(prev => [...prev, { role: 'model', text: `I've analyzed your document "${selectedFile.name}". Ask me anything about it!` }]);
-        setIsProcessingFile(false);
       }
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". Please ensure it's a valid PDF, Word document, or text file.`, isError: true }]);
+      setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". Please ensure it's a valid format.`, isError: true }]);
+    } finally {
       setIsProcessingFile(false);
+      setProcessingStatus('');
     }
   };
 
@@ -156,22 +184,22 @@ const App: React.FC = () => {
           <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
             <div className="flex-1">
               <h2 className="font-semibold text-slate-800 mb-2">Upload Notes</h2>
-              <p className="text-sm text-slate-500 mb-4">Support for PDF, Word (.docx), Text, and Images.</p>
+              <p className="text-sm text-slate-500 mb-4">Support for PDF, Word, Text, and Images (OCR).</p>
               
               <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm`}>
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
                   {isProcessingFile ? (
                      <div className="flex flex-col items-center">
                         <svg className="animate-spin h-6 w-6 text-brand-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <p className="text-xs text-brand-600 font-medium">Processing...</p>
+                        <p className="text-xs text-brand-600 font-medium">{processingStatus || 'Processing...'}</p>
                      </div>
                   ) : (
                     <>
                       <svg className="w-8 h-8 mb-3 text-slate-400 group-hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                      <p className="text-xs text-slate-500 group-hover:text-slate-600">Click to upload documents</p>
+                      <p className="text-xs text-slate-500 group-hover:text-slate-600">Click to upload documents or images</p>
                     </>
                   )}
                 </div>
@@ -187,12 +215,18 @@ const App: React.FC = () => {
               {file && (
                 <div className="bg-white/80 rounded-lg p-4 border border-brand-100 shadow-sm animate-fade-in-up mb-6">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-brand-50 rounded-md text-brand-500">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    </div>
-                    <div className="overflow-hidden">
+                    {file.originalImage ? (
+                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 border border-slate-200">
+                        <img src={file.originalImage} alt="Thumbnail" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-brand-50 rounded-md text-brand-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </div>
+                    )}
+                    <div className="overflow-hidden flex-1">
                         <p className="text-sm font-semibold text-brand-900 truncate">{file.name}</p>
-                        <p className="text-xs text-brand-700 uppercase mt-0.5">{file.category}</p>
+                        <p className="text-xs text-brand-700 uppercase mt-0.5">{file.originalImage ? 'Image (OCR Extracted)' : file.category}</p>
                     </div>
                   </div>
                 </div>
@@ -230,16 +264,36 @@ const App: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={file ? "Ask a question about your notes..." : "Upload a note first..."}
-                    className="flex-1 border border-slate-300 bg-white rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 disabled:text-slate-400 shadow-sm"
+                    placeholder={file ? (isListening ? "Listening..." : "Ask a question about your notes...") : "Upload a note first..."}
+                    className={`flex-1 border border-slate-300 bg-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
                     disabled={!file || isLoading}
                   />
+                  
+                  {/* Microphone Button */}
+                  {hasSupport && (
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      disabled={!file || isLoading}
+                      className={`absolute right-12 top-1 bottom-1 px-3 rounded-md transition-all ${
+                        isListening 
+                          ? 'text-red-500 bg-red-50 animate-pulse' 
+                          : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50'
+                      } ${(!file || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isListening ? "Stop Listening" : "Start Voice Input"}
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    </button>
+                  )}
+
                   <Button type="submit" disabled={!file || isLoading || !input.trim()} className="absolute right-1 top-1 bottom-1 px-3 rounded-md">
                      <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                   </Button>
                 </form>
                 <p className="text-center text-xs text-slate-500 mt-2 font-medium">
-                  NoteGenius AI
+                  {isListening ? <span className="text-red-500 font-semibold animate-pulse">Recording... Click mic to stop.</span> : "NoteGenius AI"}
                 </p>
              </div>
           </div>
