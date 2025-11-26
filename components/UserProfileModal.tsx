@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, UserState } from '../types';
 import { Button } from './Button';
@@ -42,9 +43,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
         {/* Header Background */}
-        <div className="h-24 bg-gradient-to-r from-brand-500 to-brand-700 relative">
+        <div className="h-24 bg-gradient-to-r from-brand-500 to-brand-700 relative shrink-0">
            <button 
              onClick={onClose}
              className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/10 hover:bg-black/20 rounded-full p-1 transition-colors"
@@ -56,7 +57,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
 
         {/* Profile Content */}
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 overflow-y-auto flex-1">
           <div className="relative flex justify-between items-end -mt-10 mb-4">
             <div className="w-20 h-20 rounded-full bg-white p-1 shadow-lg">
               <div className="w-full h-full rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-3xl font-bold border border-brand-200">
@@ -145,7 +146,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                )}
             </div>
 
-            <div className="text-center pt-2">
+            {/* Payment History Section */}
+            {userState.paymentHistory && userState.paymentHistory.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Payment History</h3>
+                <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+                  {userState.paymentHistory.map((payment) => (
+                     <div key={payment.id} className="flex justify-between items-center p-3 border-b border-slate-100 last:border-0 text-sm">
+                        <div>
+                           <p className="font-medium text-slate-700">Premium Subscription</p>
+                           <p className="text-xs text-slate-400">{new Date(payment.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="font-bold text-slate-800">KSH {payment.amount}</p>
+                           <p className="text-[10px] text-slate-400 uppercase">{payment.method}</p>
+                        </div>
+                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center pt-2 pb-2">
                <p className="text-xs text-slate-400">Member since {new Date().getFullYear()}</p>
             </div>
           </div>

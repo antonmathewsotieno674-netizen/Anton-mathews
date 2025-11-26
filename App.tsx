@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem } from './types';
-import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from './constants';
+import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH } from './constants';
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
@@ -44,7 +44,8 @@ const App: React.FC = () => {
     user: null, // Initially null (not logged in)
     isPremium: false, 
     hasPaid: false,
-    premiumExpiryDate: undefined
+    premiumExpiryDate: undefined,
+    paymentHistory: []
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -106,11 +107,11 @@ const App: React.FC = () => {
   const { isListening, toggleListening, hasSupport } = useSpeechRecognition({ onResult: handleSpeechResult });
 
   const handleLogin = (user: User) => {
-    setUserState(prev => ({ ...prev, user }));
+    setUserState(prev => ({ ...prev, user, paymentHistory: prev.paymentHistory || [] }));
   };
 
   const handleLogout = () => {
-    setUserState({ user: null, isPremium: false, hasPaid: false, premiumExpiryDate: undefined });
+    setUserState({ user: null, isPremium: false, hasPaid: false, premiumExpiryDate: undefined, paymentHistory: [] });
     setMessages([]);
     setFile(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -281,11 +282,21 @@ const App: React.FC = () => {
 
   const handlePaymentSuccess = () => {
     const expiryDate = Date.now() + PREMIUM_VALIDITY_MS;
+    
     setUserState(prev => ({ 
       ...prev, 
       isPremium: true, 
       hasPaid: true,
-      premiumExpiryDate: expiryDate
+      premiumExpiryDate: expiryDate,
+      paymentHistory: [
+        ...(prev.paymentHistory || []), 
+        {
+          id: `pay_${Date.now()}`,
+          date: Date.now(),
+          amount: PREMIUM_PRICE_KSH,
+          method: 'M-PESA'
+        }
+      ]
     }));
     setShowPaymentModal(false);
   };

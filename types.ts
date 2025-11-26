@@ -34,9 +34,17 @@ export interface User {
   authMethod: 'email' | 'phone' | 'google';
 }
 
+export interface PaymentRecord {
+  id: string;
+  date: number;
+  amount: number;
+  method: string;
+}
+
 export interface UserState {
   user: User | null;
   isPremium: boolean;
   hasPaid: boolean;
   premiumExpiryDate?: number; // Timestamp in milliseconds
+  paymentHistory: PaymentRecord[];
 }
