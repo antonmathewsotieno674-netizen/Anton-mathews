@@ -13,6 +13,19 @@ export interface UploadedFile {
   originalImage?: string; // Keep original base64 for display if OCR was performed
 }
 
+export interface LibraryItem {
+  id: string;
+  title: string;
+  author: string;
+  description: string;
+  category: string;
+  fileContent: string; // The actual content to be loaded
+  fileType: string; // mime type
+  date: string;
+  downloads: number;
+  originalImage?: string; // Optional: Keep original image for library items
+}
+
 export interface User {
   id: string;
   name: string;
@@ -25,4 +38,5 @@ export interface UserState {
   user: User | null;
   isPremium: boolean;
   hasPaid: boolean;
+  premiumExpiryDate?: number; // Timestamp in milliseconds
 }

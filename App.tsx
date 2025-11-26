@@ -1,10 +1,12 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { UploadedFile, Message, UserState, User } from './types';
-import { APP_NAME, STORAGE_KEY } from './constants';
+import { UploadedFile, Message, UserState, User, LibraryItem } from './types';
+import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from './constants';
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { LibraryModal } from './components/LibraryModal';
 import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
 import { ContactSection } from './components/ContactSection';
@@ -41,10 +43,31 @@ const App: React.FC = () => {
   const [userState, setUserState] = useState<UserState>(savedData?.userState || { 
     user: null, // Initially null (not logged in)
     isPremium: false, 
-    hasPaid: false 
+    hasPaid: false,
+    premiumExpiryDate: undefined
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  // Check for premium expiry on mount and state changes
+  useEffect(() => {
+    if (userState.isPremium && userState.premiumExpiryDate) {
+      const now = Date.now();
+      if (now > userState.premiumExpiryDate) {
+        // Subscription expired
+        setUserState(prev => ({
+          ...prev,
+          isPremium: false,
+          hasPaid: false,
+          premiumExpiryDate: undefined
+        }));
+        console.log("Premium subscription has expired.");
+      }
+    }
+  }, [userState.isPremium, userState.premiumExpiryDate]);
 
   // Persist state to local storage whenever critical data changes
   useEffect(() => {
@@ -57,12 +80,11 @@ const App: React.FC = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (error) {
       console.warn("Failed to save state to local storage (likely quota exceeded):", error);
-      // Fallback: Try saving without the file content if it's too large, but keep auth
       if (file) {
         try {
           const stateWithoutFileContent = {
             userState,
-            file: { ...file, content: '', originalImage: '' }, // stripped file metadata only
+            file: { ...file, content: '', originalImage: '' }, 
             messages
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(stateWithoutFileContent));
@@ -88,10 +110,19 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    setUserState({ user: null, isPremium: false, hasPaid: false });
+    setUserState({ user: null, isPremium: false, hasPaid: false, premiumExpiryDate: undefined });
     setMessages([]);
     setFile(null);
     localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const handleUpdateUserName = (newName: string) => {
+    if (userState.user) {
+      setUserState(prev => ({
+        ...prev,
+        user: { ...prev.user!, name: newName }
+      }));
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +145,6 @@ const App: React.FC = () => {
       if (selectedFile.type.startsWith('image/')) {
         setProcessingStatus('Scanning image...');
         
-        // get base64 for display
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);
         
@@ -131,13 +161,12 @@ const App: React.FC = () => {
           name: selectedFile.name,
           type: selectedFile.type,
           content: extractedText,
-          category: 'text', // We treat extracted text as text category
+          category: 'text',
           originalImage: base64Image
         });
         
         setMessages(prev => [...prev, { role: 'model', text: `I've successfully extracted the text from "${selectedFile.name}". You can now ask questions about it.` }]);
       } else {
-        // Handle PDF, Word, and Text
         setProcessingStatus('Reading document...');
         const textContent = await parseFileContent(selectedFile);
         
@@ -162,6 +191,67 @@ const App: React.FC = () => {
         setUploadProgress(0);
       }, 500);
     }
+  };
+
+  const handlePublishToLibrary = () => {
+    if (!file || !userState.user) return;
+    setIsPublishing(true);
+
+    const newItem: LibraryItem = {
+      id: 'lib_' + Math.random().toString(36).substr(2, 9),
+      title: file.name,
+      author: userState.user.name,
+      description: 'Shared by ' + userState.user.name,
+      category: 'General',
+      fileContent: file.content,
+      fileType: file.type,
+      originalImage: file.originalImage, // Persist image if available
+      date: new Date().toISOString().split('T')[0],
+      downloads: 0
+    };
+
+    // Simulate saving to shared storage
+    setTimeout(() => {
+      const savedLibrary = localStorage.getItem(LIBRARY_STORAGE_KEY);
+      let libraryItems: LibraryItem[] = savedLibrary ? JSON.parse(savedLibrary) : [...INITIAL_LIBRARY_DATA];
+      libraryItems.unshift(newItem); // Add to top
+      localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(libraryItems));
+      
+      setIsPublishing(false);
+      alert('Successfully published to Community Library! Other users can now find your notes.');
+    }, 1500);
+  };
+
+  const handleImportFromLibrary = (item: LibraryItem) => {
+    setShowLibraryModal(false);
+    setIsProcessingFile(true);
+    setUploadProgress(0);
+    setProcessingStatus('Importing from library...');
+
+    // Simulate network/processing delay to make it feel like a fresh upload
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 20;
+      setUploadProgress(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        
+        // Actual state update
+        setFile({
+          name: item.title,
+          type: item.fileType,
+          content: item.fileContent,
+          category: 'text',
+          originalImage: item.originalImage
+        });
+        
+        setMessages([{ role: 'model', text: `I've loaded "${item.title}" from the Community Library. Ask me anything!` }]);
+        
+        setIsProcessingFile(false);
+        setProcessingStatus('');
+        setUploadProgress(0);
+      }
+    }, 150);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -190,7 +280,13 @@ const App: React.FC = () => {
   };
 
   const handlePaymentSuccess = () => {
-    setUserState(prev => ({ ...prev, isPremium: true, hasPaid: true }));
+    const expiryDate = Date.now() + PREMIUM_VALIDITY_MS;
+    setUserState(prev => ({ 
+      ...prev, 
+      isPremium: true, 
+      hasPaid: true,
+      premiumExpiryDate: expiryDate
+    }));
     setShowPaymentModal(false);
   };
 
@@ -213,18 +309,22 @@ const App: React.FC = () => {
              <h1 className="font-bold text-xl text-slate-800 tracking-tight">{APP_NAME}</h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 mr-2">
+            <button 
+              onClick={() => setShowProfileModal(true)}
+              className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 p-1.5 rounded-lg transition-colors"
+            >
                <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs border border-brand-200">
                  {userState.user.name.charAt(0).toUpperCase()}
                </div>
-               <div className="flex flex-col">
+               <div className="flex flex-col items-start">
                  <span className="text-sm font-medium text-slate-700 leading-tight">{userState.user.name}</span>
-                 <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500 text-left">Sign out</button>
+                 <span className="text-[10px] text-slate-400">View Profile</span>
                </div>
-            </div>
+            </button>
+            <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 font-medium">Logout</button>
 
             {userState.isPremium ? (
-              <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 flex items-center gap-1 shadow-sm">
+              <span className="hidden sm:flex px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 items-center gap-1 shadow-sm">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                 Premium
               </span>
@@ -243,7 +343,7 @@ const App: React.FC = () => {
           <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
             <div className="flex-1">
               <h2 className="font-semibold text-slate-800 mb-2">Upload Notes</h2>
-              <p className="text-sm text-slate-500 mb-4">Supported formats for analysis.</p>
+              <p className="text-sm text-slate-500 mb-4">Select files from your device storage.</p>
               
               <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
@@ -260,16 +360,10 @@ const App: React.FC = () => {
                   ) : (
                     <>
                       <div className="mb-3 p-3 bg-brand-50 rounded-full group-hover:bg-brand-100 transition-colors text-brand-500">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                       </div>
-                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Click to upload or drag & drop</p>
-                      
-                      <div className="flex gap-2 mt-3 flex-wrap justify-center opacity-70 group-hover:opacity-100 transition-opacity">
-                        <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded border border-red-100 uppercase tracking-wide">PDF</span>
-                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-100 uppercase tracking-wide">DOC</span>
-                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded border border-slate-200 uppercase tracking-wide">TXT</span>
-                        <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded border border-green-100 uppercase tracking-wide">IMG</span>
-                      </div>
+                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Browse Device Files</p>
+                      <p className="text-xs text-slate-400">PDF, DOCX, TXT, Images</p>
                     </>
                   )}
                 </div>
@@ -281,6 +375,17 @@ const App: React.FC = () => {
                   disabled={isProcessingFile}
                 />
               </label>
+
+              {/* Library Access Button */}
+              <button 
+                onClick={() => setShowLibraryModal(true)}
+                className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl border border-indigo-200 transition-all font-medium text-sm"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Search Community Notes
+              </button>
 
               {file && (
                 <div className="bg-white/80 rounded-lg p-4 border border-brand-100 shadow-sm animate-fade-in-up mb-6">
@@ -301,6 +406,27 @@ const App: React.FC = () => {
                           Ready for questions
                         </p>
                     </div>
+                  </div>
+                  
+                  {/* Share to Library Button */}
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <button 
+                      onClick={handlePublishToLibrary}
+                      disabled={isPublishing}
+                      className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 hover:text-brand-600 transition-colors"
+                    >
+                      {isPublishing ? (
+                        <>
+                          <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                          Share to Community
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
@@ -342,7 +468,7 @@ const App: React.FC = () => {
                         ? "Listening..." 
                         : file 
                           ? `Ask a question about "${file.name}"...`
-                          : "Upload a PDF, Doc, or Image to get started..."
+                          : "Upload from device or Library to get started..."
                     }
                     className={`flex-1 border border-slate-300 bg-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
                     disabled={!file || isLoading}
@@ -383,6 +509,19 @@ const App: React.FC = () => {
           isOpen={showPaymentModal} 
           onClose={() => setShowPaymentModal(false)} 
           onSuccess={handlePaymentSuccess} 
+        />
+        
+        <UserProfileModal 
+          isOpen={showProfileModal} 
+          onClose={() => setShowProfileModal(false)}
+          userState={userState}
+          onUpdateUser={handleUpdateUserName}
+        />
+
+        <LibraryModal
+          isOpen={showLibraryModal}
+          onClose={() => setShowLibraryModal(false)}
+          onImport={handleImportFromLibrary}
         />
       </div>
     </div>
