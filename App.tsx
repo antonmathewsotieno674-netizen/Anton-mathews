@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { UploadedFile, Message, UserState, User, LibraryItem } from './types';
+import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH } from './constants';
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
@@ -53,6 +53,9 @@ const App: React.FC = () => {
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
   // Check for premium expiry on mount and state changes
   useEffect(() => {
     if (userState.isPremium && userState.premiumExpiryDate) {
@@ -95,6 +98,29 @@ const App: React.FC = () => {
       }
     }
   }, [userState, file, messages]);
+
+  // Handle PWA Install Prompt
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   // Speech Recognition Handler
   const handleSpeechResult = useCallback((text: string) => {
@@ -374,6 +400,23 @@ const App: React.FC = () => {
           {/* Left Sidebar: File Upload & Contacts */}
           <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
             <div className="flex-1">
+              
+              {/* Install PWA Button */}
+              {deferredPrompt && (
+                <div className="mb-6 animate-fade-in-up">
+                   <button 
+                     onClick={handleInstallClick}
+                     className="w-full flex items-center justify-center gap-2 p-3 bg-brand-600 text-white rounded-xl shadow-lg shadow-brand-500/30 hover:bg-brand-700 transition-all font-semibold text-sm"
+                   >
+                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                     </svg>
+                     Install App
+                   </button>
+                   <p className="text-[10px] text-center text-slate-500 mt-2">Add to Home Screen for easier access</p>
+                </div>
+              )}
+
               <h2 className="font-semibold text-slate-800 mb-2">Internal Storage</h2>
               <p className="text-sm text-slate-500 mb-4">Select any document from your phone.</p>
               

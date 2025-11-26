@@ -48,3 +48,9 @@ export interface UserState {
   premiumExpiryDate?: number; // Timestamp in milliseconds
   paymentHistory: PaymentRecord[];
 }
+
+// PWA Install Prompt Event
+export interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
