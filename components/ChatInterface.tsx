@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { Message } from '../types';
 
@@ -42,7 +43,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
             } ${msg.isError ? 'bg-red-50 border-red-200 text-red-600' : ''}`}
           >
             {msg.role === 'model' && (
-              <div className="font-semibold text-xs text-slate-400 mb-1 uppercase tracking-wider">NoteGenius</div>
+              <div className="font-semibold text-xs text-slate-400 mb-1 uppercase tracking-wider">MOA AI</div>
             )}
             <div className="whitespace-pre-wrap">{msg.text}</div>
           </div>

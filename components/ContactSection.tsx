@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const ContactSection: React.FC = () => {
@@ -31,7 +32,7 @@ export const ContactSection: React.FC = () => {
            </div>
            <div className="overflow-hidden">
              <p className="text-xs text-slate-500 font-medium">Email</p>
-             <p className="text-sm font-semibold text-slate-700 break-all">antonotieno673@gmail.com</p>
+             <p className="text-sm font-semibold text-slate-700 break-all">moa@moana.com</p>
            </div>
         </div>
       </div>

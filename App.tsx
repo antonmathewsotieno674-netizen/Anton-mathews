@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { UploadedFile, Message, UserState, User } from './types';
 import { APP_NAME } from './constants';
@@ -19,6 +18,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // User State including Authentication
   const [userState, setUserState] = useState<UserState>({ 
@@ -54,11 +54,20 @@ const App: React.FC = () => {
     if (!selectedFile) return;
 
     setIsProcessingFile(true);
+    setUploadProgress(0);
     setMessages([]); // Clear previous context on new upload
+    
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 15;
+      });
+    }, 300);
 
     try {
       if (selectedFile.type.startsWith('image/')) {
-        setProcessingStatus('Extracting text from image...');
+        setProcessingStatus('Scanning image...');
         
         // get base64 for display
         const reader = new FileReader();
@@ -100,8 +109,13 @@ const App: React.FC = () => {
       console.error(error);
       setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". Please ensure it's a valid format.`, isError: true }]);
     } finally {
-      setIsProcessingFile(false);
-      setProcessingStatus('');
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setTimeout(() => {
+        setIsProcessingFile(false);
+        setProcessingStatus('');
+        setUploadProgress(0);
+      }, 500);
     }
   };
 
@@ -150,7 +164,7 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md border-b border-white/50 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-2">
-             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-brand-500/30 shadow-lg">N</div>
+             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-brand-500/30 shadow-lg">M</div>
              <h1 className="font-bold text-xl text-slate-800 tracking-tight">{APP_NAME}</h1>
           </div>
           <div className="flex items-center gap-4">
@@ -184,22 +198,33 @@ const App: React.FC = () => {
           <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
             <div className="flex-1">
               <h2 className="font-semibold text-slate-800 mb-2">Upload Notes</h2>
-              <p className="text-sm text-slate-500 mb-4">Support for PDF, Word, Text, and Images (OCR).</p>
+              <p className="text-sm text-slate-500 mb-4">Supported formats for analysis.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm`}>
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
+              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
                   {isProcessingFile ? (
-                     <div className="flex flex-col items-center">
-                        <svg className="animate-spin h-6 w-6 text-brand-500 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <p className="text-xs text-brand-600 font-medium">{processingStatus || 'Processing...'}</p>
+                     <div className="flex flex-col items-center w-full px-4">
+                        <div className="w-full bg-slate-200 rounded-full h-2 mb-3 overflow-hidden">
+                          <div 
+                            className="bg-brand-500 h-2 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-brand-400 to-brand-600 animate-shimmer"
+                            style={{ width: `${Math.max(5, uploadProgress)}%`, backgroundSize: '1000px 100%' }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-brand-600 font-medium animate-pulse">{processingStatus || 'Processing...'}</p>
                      </div>
                   ) : (
                     <>
-                      <svg className="w-8 h-8 mb-3 text-slate-400 group-hover:text-brand-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                      <p className="text-xs text-slate-500 group-hover:text-slate-600">Click to upload documents or images</p>
+                      <div className="mb-3 p-3 bg-brand-50 rounded-full group-hover:bg-brand-100 transition-colors text-brand-500">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Click to upload or drag & drop</p>
+                      
+                      <div className="flex gap-2 mt-3 flex-wrap justify-center opacity-70 group-hover:opacity-100 transition-opacity">
+                        <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded border border-red-100 uppercase tracking-wide">PDF</span>
+                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-100 uppercase tracking-wide">DOC</span>
+                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded border border-slate-200 uppercase tracking-wide">TXT</span>
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded border border-green-100 uppercase tracking-wide">IMG</span>
+                      </div>
                     </>
                   )}
                 </div>
@@ -220,13 +245,16 @@ const App: React.FC = () => {
                         <img src={file.originalImage} alt="Thumbnail" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="p-2 bg-brand-50 rounded-md text-brand-500">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      <div className="p-2 bg-brand-50 rounded-md text-brand-500 flex-shrink-0">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
                     )}
-                    <div className="overflow-hidden flex-1">
-                        <p className="text-sm font-semibold text-brand-900 truncate">{file.name}</p>
-                        <p className="text-xs text-brand-700 uppercase mt-0.5">{file.originalImage ? 'Image (OCR Extracted)' : file.category}</p>
+                    <div className="overflow-hidden flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-brand-900 truncate" title={file.name}>{file.name}</p>
+                        <p className="text-xs text-brand-700 uppercase mt-0.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                          Ready for questions
+                        </p>
                     </div>
                   </div>
                 </div>
@@ -293,7 +321,7 @@ const App: React.FC = () => {
                   </Button>
                 </form>
                 <p className="text-center text-xs text-slate-500 mt-2 font-medium">
-                  {isListening ? <span className="text-red-500 font-semibold animate-pulse">Recording... Click mic to stop.</span> : "NoteGenius AI"}
+                  {isListening ? <span className="text-red-500 font-semibold animate-pulse">Recording... Click mic to stop.</span> : "MOA AI"}
                 </p>
              </div>
           </div>
