@@ -135,7 +135,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                  {paymentMethod === 'paypal' || paymentMethod === 'stripe' ? 'Funds settled to Merchant' : 'Pay to Pochi la Biashara'}
               </p>
               <div className="text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight">0757 634590</div>
-              <p className="text-xs text-slate-400 mt-1">Recipient: MOA AI Services</p>
+              <p className="text-xs text-slate-400 mt-1">Recipient: Anton</p>
             </div>
           </div>
 
