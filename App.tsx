@@ -504,8 +504,8 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Internal Storage</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Select any document from your phone.</p>
+              <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">My Documents</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Upload from your phone, cloud, or drive.</p>
               
               <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
@@ -534,11 +534,15 @@ const App: React.FC = () => {
                       <div className="mb-3 p-3 bg-brand-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-100 dark:group-hover:bg-slate-600 transition-colors text-brand-500 dark:text-brand-400">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                       </div>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 group-hover:text-brand-700 dark:group-hover:text-brand-400">Access Internal Storage</p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">PDF, Word, Images & All Documents</p>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 group-hover:text-brand-700 dark:group-hover:text-brand-400">Browse Device & Cloud</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">Local Files, Google Drive, iCloud, etc.</p>
                     </>
                   )}
                 </div>
+                {/* 
+                  accept attribute is broad to allow OS file pickers (which handle Drive/Cloud integrations) 
+                  to show all compatible files.
+                */}
                 <input 
                   type="file" 
                   className="hidden" 
