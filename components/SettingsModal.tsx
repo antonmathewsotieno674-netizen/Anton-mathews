@@ -355,6 +355,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Support Shortcuts */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+                 <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-3">Support & Feedback</h3>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => setActiveTab('help')}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left group"
+                    >
+                       <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                       </div>
+                       <div>
+                         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Help Center</p>
+                         <p className="text-xs text-slate-500 dark:text-slate-400">FAQs & Support</p>
+                       </div>
+                    </button>
+
+                    <button 
+                      onClick={() => setActiveTab('feedback')}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left group"
+                    >
+                       <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                       </div>
+                       <div>
+                         <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Send Feedback</p>
+                         <p className="text-xs text-slate-500 dark:text-slate-400">Feature requests</p>
+                       </div>
+                    </button>
+                 </div>
+              </div>
+
             </div>
           )}
 
