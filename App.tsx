@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
@@ -83,13 +84,29 @@ const App: React.FC = () => {
   };
   
   // User State including Authentication
-  const [userState, setUserState] = useState<UserState>(savedData?.userState || { 
-    user: null, // Initially null (not logged in)
-    isPremium: false, 
-    hasPaid: false,
-    premiumExpiryDate: undefined,
-    paymentHistory: [],
-    questionUsage: []
+  const [userState, setUserState] = useState<UserState>(() => {
+    const defaultState = { 
+      user: null, 
+      isPremium: false, 
+      hasPaid: false,
+      premiumExpiryDate: undefined,
+      paymentHistory: [],
+      downloadHistory: [],
+      questionUsage: []
+    };
+    
+    if (savedData?.userState) {
+      return {
+        ...defaultState,
+        ...savedData.userState,
+        // Ensure arrays exist if loading from old state
+        paymentHistory: savedData.userState.paymentHistory || [],
+        downloadHistory: savedData.userState.downloadHistory || [],
+        questionUsage: savedData.userState.questionUsage || []
+      };
+    }
+    
+    return defaultState;
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -200,6 +217,7 @@ const App: React.FC = () => {
       ...prev, 
       user, 
       paymentHistory: prev.paymentHistory || [],
+      downloadHistory: prev.downloadHistory || [],
       questionUsage: prev.questionUsage || [] 
     }));
   };
@@ -210,7 +228,8 @@ const App: React.FC = () => {
       isPremium: false, 
       hasPaid: false, 
       premiumExpiryDate: undefined, 
-      paymentHistory: [], 
+      paymentHistory: [],
+      downloadHistory: [],
       questionUsage: [] 
     });
     setMessages([]);
@@ -389,6 +408,20 @@ const App: React.FC = () => {
     setUploadProgress(0);
     setProcessingStatus('Importing from library...');
     setShowSharePrompt(false); 
+
+    // Add to download history
+    setUserState(prev => ({
+      ...prev,
+      downloadHistory: [
+        {
+          id: `dl_${Date.now()}`,
+          itemTitle: item.title,
+          itemAuthor: item.author,
+          date: Date.now()
+        },
+        ...(prev.downloadHistory || [])
+      ]
+    }));
 
     let progress = 0;
     const interval = setInterval(() => {

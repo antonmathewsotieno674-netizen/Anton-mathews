@@ -1,4 +1,5 @@
 
+
 export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps';
 
 export interface GroundingLink {
@@ -50,12 +51,20 @@ export interface PaymentRecord {
   method: string;
 }
 
+export interface DownloadRecord {
+  id: string;
+  itemTitle: string;
+  itemAuthor: string;
+  date: number;
+}
+
 export interface UserState {
   user: User | null;
   isPremium: boolean;
   hasPaid: boolean;
   premiumExpiryDate?: number; // Timestamp in milliseconds
   paymentHistory: PaymentRecord[];
+  downloadHistory: DownloadRecord[];
   questionUsage: number[]; // Array of timestamps for rate limiting
 }
 

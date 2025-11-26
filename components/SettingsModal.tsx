@@ -251,6 +251,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  </div>
               </div>
 
+              {/* Download History Section */}
+              {userState.downloadHistory && userState.downloadHistory.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Library Downloads</h3>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+                    {userState.downloadHistory.map((record) => (
+                       <div key={record.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
+                          <div>
+                             <p className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">{record.itemTitle}</p>
+                             <p className="text-xs text-slate-400">by {record.itemAuthor}</p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-xs text-slate-400">{new Date(record.date).toLocaleDateString()}</p>
+                          </div>
+                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Payment History */}
               {userState.paymentHistory && userState.paymentHistory.length > 0 && (
                 <div>
@@ -505,15 +525,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Back to About
                    </button>
                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Privacy Policy</h3>
-                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-3 h-64 overflow-y-auto pr-2 custom-scrollbar">
-                     <p><strong>1. Introduction:</strong> Welcome to MOA AI. We respect your privacy and are committed to protecting your personal data. This policy outlines how we handle your information.</p>
-                     <p><strong>2. Data Collection:</strong> We collect user-provided information such as uploaded documents, text inputs, and account details (name, email, phone number). We also automatically collect usage statistics to improve app performance.</p>
-                     <p><strong>3. AI Processing:</strong> Your notes, files, and chat queries are processed by Google Gemini AI. Data sent to the AI model is used strictly for generating responses for your session. We do not sell your personal data to third parties.</p>
-                     <p><strong>4. Local Storage:</strong> Your chat history and preferences are stored locally on your device using browser LocalStorage. Clearing your browser cache will delete this history.</p>
-                     <p><strong>5. Third-Party Services:</strong> We use third-party services for specific functions: Google (AI processing, Auth), and various payment gateways (M-PESA, PayPal, Stripe). These parties process data according to their own privacy policies.</p>
-                     <p><strong>6. Data Security:</strong> We implement industry-standard encryption and security measures to protect your data. However, no method of transmission over the internet is 100% secure.</p>
-                     <p><strong>7. User Rights:</strong> You have the right to access, correct, or request deletion of your account data. You can exercise these rights by contacting our support team via the settings menu.</p>
-                     <p><strong>8. Updates:</strong> We may update this policy from time to time. Continued use of the app constitutes acceptance of the new policy.</p>
+                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-4 h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">1. Information We Collect</h4>
+                       <p className="mb-2">We collect personal data you provide (name, email, phone) to create your account. We also collect the notes, documents, and images you upload, as well as the chat queries you send to the AI.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">2. How We Use Your Data</h4>
+                       <p className="mb-2">Your data is used solely to provide the study assistant service. Uploaded notes are processed to generate answers and summaries. We analyze usage patterns to improve app performance and stability.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">3. AI Processing & Third Parties</h4>
+                       <p className="mb-2">We utilize Google Gemini API for intelligence. Data sent to Gemini is used for generating responses and is subject to Google's data processing terms. We do not sell your personal data. Payment data is securely handled by Pochi la Biashara and respective gateways (M-PESA, PayPal, etc).</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">4. Data Retention & Security</h4>
+                       <p className="mb-2">Chat history and file references are stored locally on your device via browser LocalStorage. We employ industry-standard encryption for data in transit. You are responsible for keeping your device secure.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">5. User Rights</h4>
+                       <p className="mb-2">You have the right to request access to, correction of, or deletion of your personal data held by us. Contact support via the settings menu to exercise these rights.</p>
+                     </div>
+                      <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">6. Children's Privacy</h4>
+                       <p className="mb-2">MOA AI is intended for students of high school age and above. We do not knowingly collect personal data from children under 13 without parental consent.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">7. Updates to Policy</h4>
+                       <p className="mb-2">We may update this policy periodically. Continued use of the app after changes constitutes acceptance of the new terms.</p>
+                     </div>
                    </div>
                  </div>
                )}
@@ -525,15 +565,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Back to About
                    </button>
                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Terms of Service</h3>
-                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-3 h-64 overflow-y-auto pr-2 custom-scrollbar">
-                     <p><strong>1. Acceptance of Terms:</strong> By accessing or using MOA AI, you agree to be bound by these Terms of Service. If you do not agree, please discontinue use immediately.</p>
-                     <p><strong>2. Educational License:</strong> MOA AI grants you a limited, non-exclusive, non-transferable license to use the application for personal educational and study purposes.</p>
-                     <p><strong>3. AI Limitations:</strong> The AI services are provided "as is". MOA AI does not guarantee the accuracy, completeness, or reliability of AI-generated responses. Users must verify critical information independently. MOA AI is not liable for errors in study materials.</p>
-                     <p><strong>4. User Conduct:</strong> You agree not to upload illegal, harmful, explicit, or offensive content. You are responsible for maintaining the confidentiality of your account credentials.</p>
-                     <p><strong>5. Intellectual Property:</strong> You retain ownership of the notes you upload. By uploading, you grant MOA AI a license to process the content to provide the service. The app interface and code are owned by MOA AI.</p>
-                     <p><strong>6. Premium Subscriptions:</strong> Premium features are billed as described in the payment section. Payments are non-refundable unless required by law. We reserve the right to change pricing with notice.</p>
-                     <p><strong>7. Termination:</strong> We reserve the right to suspend or terminate accounts that violate these terms or engage in fraudulent activity.</p>
-                     <p><strong>8. Governing Law:</strong> These terms are governed by the laws of Kenya. Any disputes shall be resolved in the courts of Kenya.</p>
+                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-4 h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">1. Acceptance of Terms</h4>
+                       <p className="mb-2">By accessing MOA AI, you agree to these terms. If you disagree, please stop using the app immediately.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">2. License & Usage</h4>
+                       <p className="mb-2">We grant you a limited, non-transferable license for personal, educational use. You must not use the app for any illegal purpose or to harass others.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">3. User Responsibilities</h4>
+                       <p className="mb-2">You are responsible for the content you upload. You retain ownership of your notes but grant us a license to process them. Do not upload copyrighted material you do not have the right to use.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">4. Payment & Refunds</h4>
+                       <p className="mb-2">Premium services are billed at KSH 20 per session/period via Pochi la Biashara. Payments are generally non-refundable unless required by applicable law or in cases of proven technical failure.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">5. AI Disclaimer</h4>
+                       <p className="mb-2">The Service uses AI which may produce inaccurate or "hallucinated" results. MOA AI is a study aid, not a replacement for professional instruction. We are not liable for academic errors resulting from reliance on the app.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">6. Limitation of Liability</h4>
+                       <p className="mb-2">To the maximum extent permitted by law, MOA AI shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">7. Termination</h4>
+                       <p className="mb-2">We reserve the right to suspend accounts that violate these terms, attempt to hack the service, or abuse the payment system.</p>
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-slate-800 dark:text-white mb-1">8. Governing Law</h4>
+                       <p className="mb-2">These terms are governed by the laws of Kenya. Any disputes shall be resolved in the competent courts of Kenya.</p>
+                     </div>
                    </div>
                  </div>
                )}
