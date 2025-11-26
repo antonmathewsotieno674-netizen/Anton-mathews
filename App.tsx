@@ -524,7 +524,7 @@ const App: React.FC = () => {
             <button 
               onClick={handleExtractTasks}
               className="hidden sm:flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 font-medium text-sm transition-colors"
-              title="Create Tasks from Notes"
+              title="Generate actionable tasks from your notes"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -535,6 +535,7 @@ const App: React.FC = () => {
             <button 
               onClick={() => openSettingsTo('profile')}
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
+              title="View Profile and Settings"
             >
                <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800">
                  {userState.user.name.charAt(0).toUpperCase()}
@@ -544,7 +545,7 @@ const App: React.FC = () => {
                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Settings</span>
                </div>
             </button>
-            <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 dark:text-slate-400 font-medium">Logout</button>
+            <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 dark:text-slate-400 font-medium" title="Sign out of your account">Logout</button>
 
             {userState.isPremium && (
               <span className="hidden sm:flex px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 dark:border-amber-800 items-center gap-1 shadow-sm">
@@ -695,24 +696,28 @@ const App: React.FC = () => {
               <div className="max-w-4xl mx-auto mb-2 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                  <button 
                    onClick={() => setModelMode('standard')}
+                   title="Best for general purpose queries and summaries"
                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'standard' ? 'bg-brand-100 border-brand-300 text-brand-700 dark:bg-brand-900/40 dark:border-brand-700 dark:text-brand-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
                  >
                    ✨ Standard
                  </button>
                  <button 
                    onClick={() => setModelMode('fast')}
+                   title="Fastest responses, good for simple questions"
                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'fast' ? 'bg-yellow-100 border-yellow-300 text-yellow-700 dark:bg-yellow-900/40 dark:border-yellow-700 dark:text-yellow-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
                  >
                    ⚡ Fast (Lite)
                  </button>
                  <button 
                    onClick={() => setModelMode('thinking')}
+                   title="Uses advanced reasoning for complex problems (slower)"
                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'thinking' ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/40 dark:border-purple-700 dark:text-purple-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
                  >
                    🧠 Deep Think
                  </button>
                  <button 
                    onClick={() => setModelMode('maps')}
+                   title="Get real-world location data and directions"
                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${modelMode === 'maps' ? 'bg-green-100 border-green-300 text-green-700 dark:bg-green-900/40 dark:border-green-700 dark:text-green-300' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'}`}
                  >
                    🗺️ Maps Grounding

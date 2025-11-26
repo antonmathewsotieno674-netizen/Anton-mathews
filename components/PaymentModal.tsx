@@ -303,7 +303,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <Button 
                 type="button" 
                 variant="outline" 
-                className="flex-1 hover:scale-105 active:scale-95 transition-transform transform duration-150"
+                className="flex-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:hover:scale-100 disabled:opacity-70"
                 onClick={onClose}
                 disabled={isProcessing}
               >
@@ -311,7 +311,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </Button>
               <Button 
                 type="submit" 
-                className="flex-[2] hover:scale-105 active:scale-95 transition-transform transform duration-150 shadow-md hover:shadow-lg bg-brand-600 hover:bg-brand-700" 
+                className="flex-[2] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-brand-500/40 bg-brand-600 hover:bg-brand-700 disabled:hover:scale-100 disabled:active:scale-100 disabled:hover:shadow-none" 
                 isLoading={isProcessing}
                 disabled={(paymentMethod === 'mpesa' && phoneNumber.length !== 9)}
               >

@@ -2,19 +2,27 @@ import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
   children, 
   variant = 'primary', 
+  size = 'md',
   isLoading, 
   className = '', 
   disabled,
   ...props 
 }) => {
-  const baseStyle = "relative px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-1 overflow-hidden";
+  const baseStyle = "relative rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-1 overflow-hidden";
   
+  const sizes = {
+    sm: "px-3 py-1.5 text-sm",
+    md: "px-4 py-2",
+    lg: "px-6 py-3 text-lg"
+  };
+
   const variants = {
     primary: "bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20 focus:ring-brand-500",
     secondary: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md focus:ring-indigo-500",
@@ -24,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button 
-      className={`${baseStyle} ${variants[variant]} ${disabled || isLoading ? 'opacity-80 cursor-not-allowed' : ''} ${className}`}
+      className={`${baseStyle} ${sizes[size]} ${variants[variant]} ${disabled || isLoading ? 'opacity-80 cursor-not-allowed' : ''} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >

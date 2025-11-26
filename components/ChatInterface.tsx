@@ -85,6 +85,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
         <div className="absolute top-2 right-4 z-10">
           <button
             onClick={handleCopyAll}
+            title="Copy entire conversation to clipboard"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition-all ${
               showCopyAllSuccess
                 ? 'bg-green-100 border-green-200 text-green-700 dark:bg-green-900/40 dark:border-green-800 dark:text-green-300'
