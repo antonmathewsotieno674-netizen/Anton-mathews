@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+
+import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User } from './types';
-import { APP_NAME } from './constants';
+import { APP_NAME, STORAGE_KEY } from './constants';
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
@@ -11,9 +12,25 @@ import { InteractiveBackground } from './components/InteractiveBackground';
 import { parseFileContent } from './utils/fileParsing';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
+// Helper to load state from local storage safely
+const loadSavedState = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.warn("Failed to load saved state:", error);
+  }
+  return null;
+};
+
 const App: React.FC = () => {
-  const [file, setFile] = useState<UploadedFile | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Initialize state from local storage or defaults
+  const savedData = loadSavedState();
+
+  const [file, setFile] = useState<UploadedFile | null>(savedData?.file || null);
+  const [messages, setMessages] = useState<Message[]>(savedData?.messages || []);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -21,13 +38,40 @@ const App: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   
   // User State including Authentication
-  const [userState, setUserState] = useState<UserState>({ 
+  const [userState, setUserState] = useState<UserState>(savedData?.userState || { 
     user: null, // Initially null (not logged in)
     isPremium: false, 
     hasPaid: false 
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Persist state to local storage whenever critical data changes
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        userState,
+        file,
+        messages
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (error) {
+      console.warn("Failed to save state to local storage (likely quota exceeded):", error);
+      // Fallback: Try saving without the file content if it's too large, but keep auth
+      if (file) {
+        try {
+          const stateWithoutFileContent = {
+            userState,
+            file: { ...file, content: '', originalImage: '' }, // stripped file metadata only
+            messages
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stateWithoutFileContent));
+        } catch (retryError) {
+          console.error("Critical storage failure", retryError);
+        }
+      }
+    }
+  }, [userState, file, messages]);
 
   // Speech Recognition Handler
   const handleSpeechResult = useCallback((text: string) => {
@@ -47,6 +91,7 @@ const App: React.FC = () => {
     setUserState({ user: null, isPremium: false, hasPaid: false });
     setMessages([]);
     setFile(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
