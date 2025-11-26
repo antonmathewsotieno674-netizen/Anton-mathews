@@ -11,6 +11,7 @@ interface PaymentModalProps {
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -25,6 +26,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setPhoneNumber('');
       setEmail('');
       setStatusMessage('');
+      setProgress(0);
       setPaymentMethod('mpesa');
     }
   }, [isOpen]);
@@ -34,32 +36,54 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setProgress(10);
 
     if (paymentMethod === 'mpesa' || paymentMethod === 'airtel') {
-        setStatusMessage('Initiating STK Push...');
+        setStatusMessage('Initiating secure connection...');
+        
         setTimeout(() => {
-            setStatusMessage(`Sending prompt to ${phoneNumber}...`);
-        }, 1000);
+            setProgress(40);
+            setStatusMessage(`Sending STK Push to ${phoneNumber}...`);
+        }, 1500);
+        
         setTimeout(() => {
-            setStatusMessage('Please enter your PIN on your phone to complete transaction.');
-        }, 2500);
+            setProgress(70);
+            setStatusMessage('Waiting for PIN entry on your phone...');
+        }, 3000);
+
+        setTimeout(() => {
+            setProgress(90);
+            setStatusMessage('Verifying transaction with Pochi la Biashara...');
+        }, 5500);
+
     } else if (paymentMethod === 'paypal') {
         setStatusMessage('Redirecting to PayPal secure checkout...');
         setTimeout(() => {
-            setStatusMessage('Verifying merchant (Pochi la Biashara)...');
-        }, 2000);
-    } else {
-        setStatusMessage('Processing card transaction...');
+            setProgress(50);
+            setStatusMessage('Authenticating user credentials...');
+        }, 1500);
         setTimeout(() => {
-            setStatusMessage(' contacting gateway...');
+             setProgress(80);
+            setStatusMessage('Verifying merchant (Pochi la Biashara)...');
+        }, 3000);
+    } else {
+        setStatusMessage('Encrypting card details...');
+        setTimeout(() => {
+            setProgress(50);
+            setStatusMessage('Contacting payment gateway...');
         }, 2000);
+        setTimeout(() => {
+             setProgress(80);
+            setStatusMessage('Finalizing secure transfer...');
+        }, 4000);
     }
 
     // Simulate completion
     setTimeout(() => {
+      setProgress(100);
       setIsProcessing(false);
       setIsSuccess(true);
-    }, 6000); 
+    }, 7000); 
   };
 
   const handleComplete = () => {
@@ -105,7 +129,50 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300 border border-slate-100 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300 border border-slate-100 dark:border-slate-700 relative">
+        
+        {/* Processing Overlay */}
+        {isProcessing && (
+          <div className="absolute inset-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+             <div className="w-20 h-20 mb-6 relative">
+                {/* Ping animation background */}
+                <div className="absolute inset-0 bg-brand-500/20 rounded-full animate-ping"></div>
+                
+                {/* Dynamic Icon based on stage */}
+                <div className="relative z-10 w-full h-full bg-brand-50 dark:bg-brand-900/40 rounded-full flex items-center justify-center border border-brand-200 dark:border-brand-700 shadow-lg text-brand-600 dark:text-brand-400">
+                  {progress < 40 ? (
+                    <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  ) : progress < 70 ? (
+                    <svg className="w-8 h-8 animate-[wiggle_1s_ease-in-out_infinite]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  ) : (
+                    <svg className="w-8 h-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  )}
+                </div>
+             </div>
+
+             <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Processing Payment</h3>
+             <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 min-h-[1.25rem] font-medium animate-pulse">
+               {statusMessage}
+             </p>
+
+             {/* Progress Bar */}
+             <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-700 ease-out relative"
+                  style={{ width: `${progress}%` }}
+                >
+                   <div className="absolute inset-0 bg-white/30 animate-[shimmer_1s_infinite] w-full h-full"></div>
+                </div>
+             </div>
+             
+             {progress >= 70 && (paymentMethod === 'mpesa' || paymentMethod === 'airtel') && (
+               <p className="mt-4 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full border border-amber-100 dark:border-amber-800">
+                  Check your phone for the PIN prompt
+               </p>
+             )}
+          </div>
+        )}
+
         <div className="bg-brand-600 p-6 text-center">
           <h2 className="text-2xl font-bold text-white">Unlock Premium Access</h2>
           <p className="text-brand-100 mt-2">Get unlimited AI questions on your notes</p>
@@ -129,12 +196,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
             </div>
 
             {/* Merchant Info Banner */}
-            <div className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center relative overflow-hidden">
+            <div className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center relative overflow-hidden group hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
               <div className="absolute top-0 right-0 w-16 h-16 bg-brand-500/5 rounded-bl-full -mr-8 -mt-8"></div>
               <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">
                  {paymentMethod === 'paypal' || paymentMethod === 'stripe' ? 'Funds settled to Merchant' : 'Pay to Pochi la Biashara'}
               </p>
-              <div className="text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight">0757 634590</div>
+              <div className="text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">0757 634590</div>
               <p className="text-xs text-slate-400 mt-1">Recipient: Anton</p>
             </div>
           </div>
@@ -160,7 +227,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                     disabled={isProcessing}
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1 ml-1">
+                <p className="text-xs text-slate-400 mt-1 ml-1 flex items-center gap-1">
+                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                    A PIN prompt will be sent to this number.
                 </p>
               </div>
@@ -224,17 +292,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </div>
             )}
 
-            {statusMessage && (
-               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex items-start gap-2 animate-pulse">
-                 <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                 </svg>
-                 <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                   {statusMessage}
-                 </p>
-               </div>
-            )}
-
             <div className="flex gap-3 mt-4">
               <Button 
                 type="button" 
@@ -251,7 +308,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                 isLoading={isProcessing}
                 disabled={(paymentMethod === 'mpesa' && phoneNumber.length !== 9)}
               >
-                {isProcessing ? 'Processing...' : 'Verify Payment'}
+                Verify Payment
               </Button>
             </div>
           </form>
