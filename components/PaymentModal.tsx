@@ -92,18 +92,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
 
   const getMethodStyle = (method: string) => {
     const isActive = paymentMethod === method;
-    const base = "flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg border transition-all whitespace-nowrap";
+    const base = "flex-shrink-0 px-4 py-2.5 text-sm font-medium rounded-xl border transition-all whitespace-nowrap snap-center";
     
     if (isActive) {
       switch(method) {
-        case 'mpesa': return `${base} bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 ring-1 ring-green-500`;
-        case 'airtel': return `${base} bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400 ring-1 ring-red-500`;
-        case 'paypal': return `${base} bg-blue-50 dark:bg-blue-900/20 border-blue-600 text-blue-700 dark:text-blue-400 ring-1 ring-blue-600`;
-        case 'stripe': return `${base} bg-violet-50 dark:bg-violet-900/20 border-violet-500 text-violet-700 dark:text-violet-400 ring-1 ring-violet-500`;
+        case 'mpesa': return `${base} bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 ring-1 ring-green-500 shadow-sm`;
+        case 'airtel': return `${base} bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400 ring-1 ring-red-500 shadow-sm`;
+        case 'paypal': return `${base} bg-blue-50 dark:bg-blue-900/20 border-blue-600 text-blue-700 dark:text-blue-400 ring-1 ring-blue-600 shadow-sm`;
+        case 'stripe': return `${base} bg-violet-50 dark:bg-violet-900/20 border-violet-500 text-violet-700 dark:text-violet-400 ring-1 ring-violet-500 shadow-sm`;
         default: return `${base} bg-slate-100 dark:bg-slate-600 border-slate-400 text-slate-800 dark:text-white`;
       }
     }
-    return `${base} bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600`;
+    return `${base} bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600 hover:border-slate-300 dark:hover:border-slate-500`;
   };
 
   if (isSuccess) {
@@ -128,10 +128,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300 border border-slate-100 dark:border-slate-700 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
+      {/* 
+        Changes for responsive layout: 
+        1. max-h-[90vh] ensures it fits on screen.
+        2. flex flex-col allows internal scrolling.
+      */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden transform transition-all animate-in fade-in zoom-in duration-300 border border-slate-100 dark:border-slate-700 relative">
         
-        {/* Processing Overlay */}
+        {/* Processing Overlay - Absolute to cover everything */}
         {isProcessing && (
           <div className="absolute inset-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
              <div className="w-20 h-20 mb-6 relative">
@@ -173,19 +178,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           </div>
         )}
 
-        <div className="bg-brand-600 p-6 text-center">
+        {/* Fixed Header */}
+        <div className="bg-brand-600 p-6 text-center shrink-0">
           <h2 className="text-2xl font-bold text-white">Unlock Premium Access</h2>
           <p className="text-brand-100 mt-2">Get unlimited AI questions on your notes</p>
         </div>
         
-        <div className="p-6">
+        {/* Scrollable Content Body */}
+        <div className="p-6 overflow-y-auto flex-1">
           <div className="flex flex-col items-center justify-center mb-6 space-y-4">
             <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-4 py-1 rounded-full text-sm font-semibold border border-green-200 dark:border-green-800">
               Only KSH {PREMIUM_PRICE_KSH} / session
             </div>
 
-            {/* Payment Method Selector - Scrollable */}
-            <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
+            {/* Payment Method Selector - Scrollable & Snappy */}
+            <div className="w-full overflow-x-auto pb-1 scrollbar-hide snap-x">
               <div className="flex gap-2 min-w-min px-1">
                   <button type="button" onClick={() => setPaymentMethod('mpesa')} className={getMethodStyle('mpesa')}>M-PESA</button>
                   <button type="button" onClick={() => setPaymentMethod('airtel')} className={getMethodStyle('airtel')}>Airtel</button>
@@ -195,13 +202,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </div>
             </div>
 
-            {/* Merchant Info Banner */}
+            {/* Merchant Info Banner - Compact on mobile */}
             <div className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center relative overflow-hidden group hover:border-brand-200 dark:hover:border-brand-800 transition-colors">
               <div className="absolute top-0 right-0 w-16 h-16 bg-brand-500/5 rounded-bl-full -mr-8 -mt-8"></div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">
+              <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">
                  {paymentMethod === 'paypal' || paymentMethod === 'stripe' ? 'Funds settled to Merchant' : 'Pay to Pochi la Biashara'}
               </p>
-              <div className="text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">0757 634590</div>
+              <div className="text-xl md:text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors break-words">0757 634590</div>
               <p className="text-xs text-slate-400 mt-1">Recipient: Anton</p>
             </div>
           </div>
@@ -292,11 +299,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </div>
             )}
 
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-4 pt-2">
               <Button 
                 type="button" 
                 variant="outline" 
-                className="w-full hover:scale-105 active:scale-95 transition-transform transform duration-150"
+                className="flex-1 hover:scale-105 active:scale-95 transition-transform transform duration-150"
                 onClick={onClose}
                 disabled={isProcessing}
               >
@@ -304,7 +311,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               </Button>
               <Button 
                 type="submit" 
-                className="w-full hover:scale-105 active:scale-95 transition-transform transform duration-150 shadow-md hover:shadow-lg" 
+                className="flex-[2] hover:scale-105 active:scale-95 transition-transform transform duration-150 shadow-md hover:shadow-lg bg-brand-600 hover:bg-brand-700" 
                 isLoading={isProcessing}
                 disabled={(paymentMethod === 'mpesa' && phoneNumber.length !== 9)}
               >
