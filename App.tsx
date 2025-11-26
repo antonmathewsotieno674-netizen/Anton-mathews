@@ -439,6 +439,17 @@ const App: React.FC = () => {
     setInput("How do I use MOA AI effectively?");
   };
 
+  // Helper to get days remaining on premium
+  const getDaysRemaining = () => {
+    if (!userState.premiumExpiryDate) return 0;
+    const diff = userState.premiumExpiryDate - Date.now();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const daysRemaining = getDaysRemaining();
+  // Show warning if premium and expiring in 7 days or less
+  const showRenewalWarning = userState.isPremium && daysRemaining <= 7 && daysRemaining > 0;
+
   // If not logged in, show Auth Screen
   if (!userState.user) {
     return <AuthScreen onLogin={handleLogin} />;
@@ -480,6 +491,24 @@ const App: React.FC = () => {
             )}
           </div>
         </header>
+
+        {/* Premium Expiry Warning Banner */}
+        {showRenewalWarning && (
+          <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-6 py-2 text-sm font-medium flex justify-between items-center border-b border-amber-200 dark:border-amber-800 animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Your Premium subscription expires in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}. Renew now to keep full access.</span>
+            </div>
+            <button 
+              onClick={triggerUpgrade}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded-md text-xs font-bold transition-colors shadow-sm whitespace-nowrap ml-2"
+            >
+              Renew Now
+            </button>
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full overflow-hidden">
