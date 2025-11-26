@@ -534,6 +534,14 @@ const App: React.FC = () => {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
+  // Calculate remaining free questions
+  const remainingQuestions = !userState.isPremium ? (() => {
+      const now = Date.now();
+      const oneHourAgo = now - USAGE_WINDOW_MS;
+      const recentUsage = (userState.questionUsage || []).filter(timestamp => timestamp > oneHourAgo);
+      return Math.max(0, FREE_QUESTIONS_LIMIT - recentUsage.length);
+  })() : null;
+
   const daysRemaining = getDaysRemaining();
   const showRenewalWarning = userState.isPremium && daysRemaining <= 7 && daysRemaining > 0;
 
@@ -796,8 +804,16 @@ const App: React.FC = () => {
                 </Button>
               </form>
               <div className="text-center mt-2">
-                 <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                    MOA AI can make mistakes. Verify important information. {userState.isPremium ? 'Premium Plan Active.' : `${FREE_QUESTIONS_LIMIT} free questions/hr.`}
+                 <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5">
+                    <span>MOA AI can make mistakes.</span>
+                    <span className="hidden sm:inline">Verify important info.</span>
+                    {userState.isPremium ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">Premium</span>
+                    ) : (
+                      <span className={`font-medium px-1.5 py-0.5 rounded transition-colors ${remainingQuestions === 0 ? 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-300'}`}>
+                        {remainingQuestions}/{FREE_QUESTIONS_LIMIT} free questions left
+                      </span>
+                    )}
                  </p>
               </div>
             </div>
