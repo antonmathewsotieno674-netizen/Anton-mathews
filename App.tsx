@@ -183,9 +183,27 @@ const App: React.FC = () => {
         
         setMessages(prev => [...prev, { role: 'model', text: `I've analyzed your document "${selectedFile.name}". Ask me anything about it!` }]);
       }
-    } catch (error) {
-      console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". It might be corrupted or in an unsupported format.`, isError: true }]);
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      
+      let errorText = `Sorry, I couldn't read the file "${selectedFile.name}". It might be corrupted or in an unsupported format.`;
+      
+      // Customize based on known error messages
+      if (error.message && typeof error.message === 'string') {
+        if (error.message.includes('too large')) {
+          errorText = `The file "${selectedFile.name}" is too large (over 15MB). Please try a smaller file or split it into sections.`;
+        } else if (error.message.includes('empty')) {
+          errorText = `The file "${selectedFile.name}" seems to be empty. Please check the content.`;
+        } else if (error.message.includes('OCR') || error.message.includes('extract text')) {
+          errorText = `I couldn't read the text from the image "${selectedFile.name}". Ensure the image is clear, well-lit, and contains visible text.`;
+        }
+      }
+
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: `${errorText}\n\nTry converting your file to PDF or Plain Text (.txt) if issues persist. If you continue to face problems, please contact support via the sidebar options.`, 
+        isError: true 
+      }]);
     } finally {
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -359,7 +377,7 @@ const App: React.FC = () => {
               <h2 className="font-semibold text-slate-800 mb-2">Internal Storage</h2>
               <p className="text-sm text-slate-500 mb-4">Select any document from your phone.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} ${!file && !isProcessingFile ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
                   {isProcessingFile ? (
                      <div className="flex flex-col items-center w-full px-4">
@@ -385,7 +403,7 @@ const App: React.FC = () => {
                   type="file" 
                   className="hidden" 
                   onChange={handleFileUpload} 
-                  accept="*" // Allow user to browse all files in internal storage
+                  accept=".pdf,.doc,.docx,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/*,image/*,*/*" // Explicitly list document types for better mobile support
                   disabled={isProcessingFile}
                 />
               </label>
