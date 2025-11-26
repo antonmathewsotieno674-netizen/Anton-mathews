@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { UserState } from '../types';
 import { Button } from './Button';
-import { SOCIAL_LINKS } from '../constants';
+import { SOCIAL_LINKS, APP_NAME, APP_VERSION } from '../constants';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,7 +19,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState<'profile' | 'community'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'community' | 'about'>('profile');
 
   if (!isOpen || !userState.user) return null;
 
@@ -55,18 +55,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-100 shrink-0">
+        <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'profile' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 min-w-[100px] py-3 text-sm font-medium transition-colors ${activeTab === 'profile' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            Profile & Account
+            Profile
           </button>
           <button 
             onClick={() => setActiveTab('community')}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'community' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`flex-1 min-w-[100px] py-3 text-sm font-medium transition-colors ${activeTab === 'community' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
           >
-            Community & Support
+            Community
+          </button>
+          <button 
+            onClick={() => setActiveTab('about')}
+            className={`flex-1 min-w-[80px] py-3 text-sm font-medium transition-colors ${activeTab === 'about' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            About
           </button>
         </div>
 
@@ -207,6 +213,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <a href="mailto:moa@moana.com" className="font-medium text-brand-600">moa@moana.com</a>
                    </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'about' && (
+            <div className="space-y-6 text-center">
+              <div className="w-20 h-20 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center text-white text-4xl font-bold shadow-xl rotate-3 mb-4">
+                M
+              </div>
+              
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-slate-800">{APP_NAME}</h3>
+                <p className="text-sm font-medium text-slate-500 bg-slate-100 inline-block px-3 py-1 rounded-full mt-2">Version {APP_VERSION}</p>
+              </div>
+
+              <p className="text-slate-600 text-sm leading-relaxed px-2">
+                MOA AI is your intelligent study companion, designed to analyze documents, extract insights from images, and provide instant, accurate answers to help you excel in your studies.
+              </p>
+              
+              <div className="pt-6 border-t border-slate-100 space-y-3">
+                 <button className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm font-medium text-slate-700 transition-colors flex justify-between items-center group">
+                   <span>Privacy Policy</span>
+                   <svg className="w-4 h-4 text-slate-400 group-hover:text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                 </button>
+                 <button className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm font-medium text-slate-700 transition-colors flex justify-between items-center group">
+                   <span>Terms of Service</span>
+                   <svg className="w-4 h-4 text-slate-400 group-hover:text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                 </button>
+              </div>
+              
+              <div className="mt-8">
+                <p className="text-xs text-slate-400">Developed with ❤️ for Students</p>
+                <p className="text-[10px] text-slate-300 mt-1">© {new Date().getFullYear()} {APP_NAME}. All rights reserved.</p>
               </div>
             </div>
           )}
