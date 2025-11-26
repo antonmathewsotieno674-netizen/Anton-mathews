@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Content, Part } from "@google/genai";
 import { GEMINI_MODEL_TEXT, GEMINI_MODEL_VISION, SYSTEM_INSTRUCTION } from "../constants";
 import { UploadedFile, Message } from "../types";
@@ -6,6 +5,30 @@ import { UploadedFile, Message } from "../types";
 // Initialize the client
 // NOTE: Process.env.API_KEY is handled by the build/runtime environment automatically.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+/**
+ * Generates an abstract AI background wallpaper using Imagen.
+ */
+export const generateWallpaper = async (): Promise<string> => {
+  try {
+    // Explicitly using Imagen as requested by user
+    const response = await ai.models.generateImages({
+      model: 'imagen-3.0-generate-001', 
+      prompt: 'Abstract representation of artificial intelligence, neural connections, glowing nodes in deep blue and cyan space, digital brain, futuristic data flow, high quality, 4k resolution, wallpaper style, subtle geometric patterns',
+      config: {
+        numberOfImages: 1,
+        outputMimeType: 'image/jpeg',
+        aspectRatio: '16:9',
+      },
+    });
+
+    const base64String = response.generatedImages[0].image.imageBytes;
+    return `data:image/jpeg;base64,${base64String}`;
+  } catch (error) {
+    console.error("Imagen API Error:", error);
+    throw new Error("Failed to generate wallpaper. Please try again.");
+  }
+};
 
 /**
  * Extracts text from an image file using Gemini Vision capabilities (OCR).

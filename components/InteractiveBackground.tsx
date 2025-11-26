@@ -1,49 +1,194 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-export const InteractiveBackground: React.FC = () => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+interface InteractiveBackgroundProps {
+  backgroundImage?: string;
+}
 
+export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ backgroundImage }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Handle global mouse movement for both Canvas and Image Parallax
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth) * 20,
-        y: (e.clientY / window.innerHeight) * 20,
-      });
+      // Normalize mouse position from -1 to 1
+      const x = (e.clientX / window.innerWidth) * 2 - 1;
+      const y = (e.clientY / window.innerHeight) * 2 - 1;
+      setMousePos({ x, y });
     };
-
+    
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // --- CANVAS LOGIC (Fallback) ---
+  useEffect(() => {
+    // If we have a background image, don't run the canvas animation
+    if (backgroundImage || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const particleCount = Math.min(80, Math.floor((width * height) / 12000)); 
+    const connectionDistance = Math.min(width, height) * 0.15;
+    const mouseDistance = 250;
+    let isDarkMode = document.documentElement.classList.contains('dark');
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          isDarkMode = document.documentElement.classList.contains('dark');
+        }
+      });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+    }
+
+    const particles: Particle[] = [];
+    const initParticles = () => {
+      particles.length = 0;
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          size: Math.random() * 2 + 0.5,
+        });
+      }
+    };
+    initParticles();
+
+    // Local mouse tracker for canvas specific logic
+    const canvasMouse = { x: -1000, y: -1000 };
+    const updateCanvasMouse = (e: MouseEvent) => {
+      canvasMouse.x = e.clientX;
+      canvasMouse.y = e.clientY;
+    };
+    window.addEventListener('mousemove', updateCanvasMouse);
+
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      initParticles();
+    };
+    window.addEventListener('resize', handleResize);
+
+    let animationId: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      const particleColor = isDarkMode ? 'rgba(56, 189, 248, 0.6)' : 'rgba(2, 132, 199, 0.4)'; 
+      const lineColor = isDarkMode ? 'rgba(56, 189, 248, ' : 'rgba(2, 132, 199, ';
+
+      particles.forEach((p, index) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        const dx = canvasMouse.x - p.x;
+        const dy = canvasMouse.y - p.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < mouseDistance) {
+          const forceDirectionX = dx / distance;
+          const forceDirectionY = dy / distance;
+          const force = (mouseDistance - distance) / mouseDistance;
+          const directionX = forceDirectionX * force * 0.5;
+          const directionY = forceDirectionY * force * 0.5;
+
+          p.vx -= directionX;
+          p.vy -= directionY;
+        }
+
+        const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        const maxSpeed = 1.5;
+        if (speed > maxSpeed) {
+             p.vx = (p.vx / speed) * maxSpeed;
+             p.vy = (p.vy / speed) * maxSpeed;
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = particleColor;
+        ctx.fill();
+
+        for (let j = index + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx2 = p.x - p2.x;
+          const dy2 = p.y - p2.y;
+          const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+          if (dist2 < connectionDistance) {
+            ctx.beginPath();
+            const opacity = 1 - dist2 / connectionDistance;
+            ctx.strokeStyle = lineColor + (opacity * 0.2) + ')';
+            ctx.lineWidth = 1;
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      });
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('mousemove', updateCanvasMouse);
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
+      observer.disconnect();
+    };
+  }, [backgroundImage]);
+
+  if (backgroundImage) {
+    // --- IMAGEN PARALLAX BACKGROUND ---
+    // Moving opposite to mouse for depth effect
+    // Scale is 110% to prevent edges showing during movement
+    const transformStyle = {
+      transform: `translate3d(${mousePos.x * -20}px, ${mousePos.y * -20}px, 0) scale(1.1)`,
+      backgroundImage: `url(${backgroundImage})`,
+    };
+
+    return (
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-slate-900">
+         <div 
+           className="absolute inset-[-5%] w-[110%] h-[110%] bg-cover bg-center transition-transform duration-100 ease-out opacity-80"
+           style={transformStyle}
+         />
+         <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]"></div>
+         {/* Vignette */}
+         <div className="absolute inset-0 bg-[radial-gradient(transparent_40%,rgba(2,6,23,0.8)_100%)]"></div>
+      </div>
+    );
+  }
+
+  // --- DEFAULT NEURAL NETWORK ---
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-      {/* Base Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-950 transition-colors duration-300"></div>
-
-      {/* Animated Blobs */}
-      <div 
-        className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 dark:bg-purple-900/40 rounded-full mix-blend-multiply dark:mix-blend-normal filter blur-xl opacity-30 animate-blob"
-        style={{ transform: `translate(${mousePosition.x * -1}px, ${mousePosition.y * -1}px)` }}
-      ></div>
-      <div 
-        className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 dark:bg-yellow-900/40 rounded-full mix-blend-multiply dark:mix-blend-normal filter blur-xl opacity-30 animate-blob animation-delay-2000"
-        style={{ transform: `translate(${mousePosition.x}px, ${mousePosition.y * -1}px)` }}
-      ></div>
-      <div 
-        className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 dark:bg-pink-900/40 rounded-full mix-blend-multiply dark:mix-blend-normal filter blur-xl opacity-30 animate-blob animation-delay-4000"
-        style={{ transform: `translate(${mousePosition.x * -1}px, ${mousePosition.y}px)` }}
-      ></div>
-      
-      {/* Grid Pattern Overlay */}
-      <div className="absolute inset-0" style={{ 
-        backgroundImage: 'radial-gradient(rgba(148, 163, 184, 0.5) 1px, transparent 1px)', 
-        backgroundSize: '30px 30px',
-        opacity: 0.1
-      }}></div>
-
-      {/* Floating Elements (Abstract Notes) */}
-      <div className="absolute top-1/4 left-10 w-16 h-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-sm rotate-12 opacity-40 animate-float"></div>
-      <div className="absolute bottom-1/3 right-10 w-20 h-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-sm -rotate-6 opacity-40 animate-float" style={{ animationDelay: '1s' }}></div>
+    <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-sky-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors duration-700"></div>
+        <canvas ref={canvasRef} className="absolute inset-0 block opacity-80" />
+        <div className="absolute inset-0 bg-radial-gradient-transparent dark:bg-[radial-gradient(transparent_0%,rgba(2,6,23,0.4)_100%)]"></div>
     </div>
   );
 };

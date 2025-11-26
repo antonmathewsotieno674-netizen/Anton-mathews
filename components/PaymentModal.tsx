@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { PREMIUM_PRICE_KSH } from '../constants';
@@ -12,6 +13,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const [isProcessing, setIsProcessing] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'airtel' | 'card'>('mpesa');
+  const [statusMessage, setStatusMessage] = useState('');
 
   // Reset state when modal opens
   useEffect(() => {
@@ -19,6 +22,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setIsProcessing(false);
       setIsSuccess(false);
       setPhoneNumber('');
+      setStatusMessage('');
+      setPaymentMethod('mpesa');
     }
   }, [isOpen]);
 
@@ -27,12 +32,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setStatusMessage('Initiating STK Push...');
     
-    // Simulate API call to MPESA/Payment Gateway
+    // Simulate API call sequence
+    setTimeout(() => {
+        setStatusMessage(`Sending prompt to ${phoneNumber}...`);
+    }, 1000);
+
+    setTimeout(() => {
+        setStatusMessage('Please enter your M-PESA PIN on your phone to complete transaction.');
+    }, 2500);
+
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
-    }, 2000);
+    }, 6000); // Longer delay to simulate user entering PIN
   };
 
   const handleComplete = () => {
@@ -52,7 +66,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
           <p className="text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
             Premium access is now active. You can enjoy unlimited questions and deep analysis on all your notes.
           </p>
-          <Button onClick={handleComplete} className="w-full py-3 text-lg shadow-lg shadow-brand-500/30">
+          <Button onClick={handleComplete} className="w-full py-3 text-lg shadow-lg shadow-brand-500/30 hover:scale-[1.02] active:scale-[0.98] transition-transform transform">
             Start Learning
           </Button>
         </div>
@@ -74,16 +88,43 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               Only KSH {PREMIUM_PRICE_KSH} / session
             </div>
 
+            {/* Payment Method Selector */}
+            <div className="flex gap-2 w-full">
+                <button 
+                  type="button"
+                  onClick={() => setPaymentMethod('mpesa')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-all ${paymentMethod === 'mpesa' ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 ring-1 ring-green-500' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
+                >
+                    M-PESA
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setPaymentMethod('airtel')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-all ${paymentMethod === 'airtel' ? 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400 ring-1 ring-red-500' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
+                >
+                    Airtel Money
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-all ${paymentMethod === 'card' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-400 ring-1 ring-blue-500' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
+                >
+                    Card
+                </button>
+            </div>
+
             <div className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center">
               <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">Pay to Pochi la Biashara</p>
               <div className="text-2xl font-mono font-bold text-slate-800 dark:text-white tracking-tight">0757 634590</div>
-              <p className="text-xs text-slate-400 mt-1">Send KSH {PREMIUM_PRICE_KSH} to this number</p>
+              <p className="text-xs text-slate-400 mt-1">Recipient: MOA AI Services</p>
             </div>
           </div>
 
           <form onSubmit={handlePayment} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm M-PESA Phone Number</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                 Enter Phone Number for PIN Prompt
+              </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-slate-400">🇰🇪 +254</span>
                 <input 
@@ -94,36 +135,42 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   required
                   pattern="[0-9]{9}"
+                  disabled={isProcessing}
                 />
               </div>
-              <p className="text-xs text-slate-400 mt-1 ml-1">Enter the number you used to pay</p>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex items-start gap-2">
-              <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                After sending payment, enter your number above and click 'Verify Payment' to access premium features.
+              <p className="text-xs text-slate-400 mt-1 ml-1">
+                 A prompt will be sent to this number asking for your PIN.
               </p>
             </div>
 
-            <div className="flex gap-3 mt-2">
+            {statusMessage && (
+               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex items-start gap-2 animate-pulse">
+                 <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                 </svg>
+                 <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                   {statusMessage}
+                 </p>
+               </div>
+            )}
+
+            <div className="flex gap-3 mt-4">
               <Button 
                 type="button" 
                 variant="outline" 
-                className="w-full"
+                className="w-full hover:scale-105 active:scale-95 transition-transform transform duration-150"
                 onClick={onClose}
+                disabled={isProcessing}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full hover:scale-105 active:scale-95 transition-transform transform duration-150 shadow-md hover:shadow-lg" 
                 isLoading={isProcessing}
                 disabled={phoneNumber.length !== 9}
               >
-                Verify Payment
+                {isProcessing ? 'Processing...' : 'Verify Payment'}
               </Button>
             </div>
           </form>

@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
-import { generateResponse, performOCR } from './services/geminiService';
+import { generateResponse, performOCR, generateWallpaper } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -37,7 +38,12 @@ const App: React.FC = () => {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   
+  // Custom Background State
+  const [customBackground, setCustomBackground] = useState<string | undefined>(savedData?.customBackground);
+  const [isGeneratingBg, setIsGeneratingBg] = useState(false);
+
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof localStorage !== 'undefined') {
@@ -104,7 +110,8 @@ const App: React.FC = () => {
       const stateToSave = {
         userState,
         file,
-        messages
+        messages,
+        customBackground
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (error) {
@@ -114,7 +121,8 @@ const App: React.FC = () => {
           const stateWithoutFileContent = {
             userState,
             file: { ...file, content: '', originalImage: '' }, 
-            messages
+            messages,
+            customBackground
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(stateWithoutFileContent));
         } catch (retryError) {
@@ -122,7 +130,7 @@ const App: React.FC = () => {
         }
       }
     }
-  }, [userState, file, messages]);
+  }, [userState, file, messages, customBackground]);
 
   // Handle PWA Install Prompt
   useEffect(() => {
@@ -177,6 +185,7 @@ const App: React.FC = () => {
     });
     setMessages([]);
     setFile(null);
+    setCustomBackground(undefined);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -189,10 +198,31 @@ const App: React.FC = () => {
     }
   };
 
+  // Generate AI Background Handler
+  const handleGenerateBackground = async () => {
+    setIsGeneratingBg(true);
+    try {
+      const imageUrl = await generateWallpaper();
+      setCustomBackground(imageUrl);
+    } catch (error) {
+      console.error("Background generation failed:", error);
+      alert("Could not generate background at this time. Please try again.");
+    } finally {
+      setIsGeneratingBg(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    // Visual feedback start
+    setUploadSuccess(true);
+    
+    // Wait for animation to show feedback
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    setUploadSuccess(false);
     setIsProcessingFile(true);
     setUploadProgress(0);
     setMessages([]); // Clear previous context on new upload
@@ -399,6 +429,16 @@ const App: React.FC = () => {
     setShowPaymentModal(false);
   };
 
+  const triggerUpgrade = () => {
+    setShowSettingsModal(false);
+    setShowPaymentModal(true);
+  };
+
+  const handleAskAIHelp = () => {
+    setShowSettingsModal(false);
+    setInput("How do I use MOA AI effectively?");
+  };
+
   // If not logged in, show Auth Screen
   if (!userState.user) {
     return <AuthScreen onLogin={handleLogin} />;
@@ -406,7 +446,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen relative bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-      <InteractiveBackground />
+      <InteractiveBackground backgroundImage={customBackground} />
       
       {/* Main Content Wrapper - Glass Effect */}
       <div className="relative z-10 flex flex-col h-screen bg-white/30 dark:bg-slate-900/40 backdrop-blur-sm">
@@ -432,15 +472,11 @@ const App: React.FC = () => {
             </button>
             <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 dark:text-slate-400 font-medium">Logout</button>
 
-            {userState.isPremium ? (
+            {userState.isPremium && (
               <span className="hidden sm:flex px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-bold uppercase tracking-wider border border-amber-200 dark:border-amber-800 items-center gap-1 shadow-sm">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                 Premium
               </span>
-            ) : (
-               <button onClick={() => setShowPaymentModal(true)} className="text-sm text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 font-medium transition-colors bg-white/50 dark:bg-slate-700/50 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600">
-                 Upgrade Plan
-               </button>
             )}
           </div>
         </header>
@@ -471,9 +507,19 @@ const App: React.FC = () => {
               <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Internal Storage</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Select any document from your phone.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
-                  {isProcessingFile ? (
+                  {uploadSuccess ? (
+                    <div className="animate-in zoom-in duration-300 flex flex-col items-center">
+                       <div className="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 mb-2 shadow-sm">
+                          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                       </div>
+                       <p className="text-green-700 dark:text-green-300 font-bold text-lg">File Received!</p>
+                       <p className="text-xs text-green-600 dark:text-green-400/80 mt-1">Starting analysis...</p>
+                    </div>
+                  ) : isProcessingFile ? (
                      <div className="flex flex-col items-center w-full px-4">
                         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-3 overflow-hidden">
                           <div 
@@ -559,20 +605,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="mt-6 flex flex-col gap-6">
-               {/* Premium Card */}
-               {!userState.isPremium && (
-                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-xl p-5 text-white shadow-lg relative overflow-hidden flex-shrink-0">
-                  <div className="relative z-10">
-                    <h3 className="font-bold text-lg mb-1">Go Premium</h3>
-                    <p className="text-indigo-100 text-xs mb-3">Limit reached? Get unlimited questions.</p>
-                    <Button variant="secondary" onClick={() => setShowPaymentModal(true)} className="w-full text-sm py-1.5 bg-white text-indigo-700 hover:bg-indigo-50 shadow-none border-0">
-                      Unlock for KSH 20
-                    </Button>
-                  </div>
-                  <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-white opacity-10 rounded-full blur-xl"></div>
-                  <div className="absolute bottom-0 left-0 -mb-2 -ml-2 w-16 h-16 bg-purple-400 opacity-20 rounded-full blur-xl"></div>
-                </div>
-              )}
               
               {/* Settings Trigger Button */}
               <button 
@@ -608,7 +640,7 @@ const App: React.FC = () => {
                           : "Upload from device or Library to get started..."
                     }
                     className={`flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
-                    disabled={!file || isLoading}
+                    disabled={(!file && !input) || isLoading}
                   />
                   
                   {/* Microphone Button */}
@@ -616,12 +648,12 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={toggleListening}
-                      disabled={!file || isLoading}
+                      disabled={(!file && !input) || isLoading}
                       className={`absolute right-12 top-1 bottom-1 px-3 rounded-md transition-all ${
                         isListening 
                           ? 'text-red-500 bg-red-50 dark:bg-red-900/30 animate-pulse' 
                           : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50 dark:hover:bg-slate-600'
-                      } ${(!file || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      } ${((!file && !input) || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       title={isListening ? "Stop Listening" : "Start Voice Input"}
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -630,7 +662,7 @@ const App: React.FC = () => {
                     </button>
                   )}
 
-                  <Button type="submit" disabled={!file || isLoading || !input.trim()} className="absolute right-1 top-1 bottom-1 px-3 rounded-md">
+                  <Button type="submit" disabled={(!file && !input) || isLoading || !input.trim()} className="absolute right-1 top-1 bottom-1 px-3 rounded-md">
                      <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                   </Button>
                 </form>
@@ -655,6 +687,10 @@ const App: React.FC = () => {
           onUpdateUser={handleUpdateUserName}
           theme={theme}
           toggleTheme={toggleTheme}
+          onUpgrade={triggerUpgrade}
+          onHelp={handleAskAIHelp}
+          onGenerateBackground={handleGenerateBackground}
+          isGeneratingBackground={isGeneratingBg}
         />
 
         <LibraryModal

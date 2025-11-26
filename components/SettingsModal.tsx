@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { UserState } from '../types';
 import { Button } from './Button';
@@ -10,6 +11,10 @@ interface SettingsModalProps {
   onUpdateUser: (name: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  onUpgrade: () => void;
+  onHelp: () => void;
+  onGenerateBackground?: () => Promise<void>;
+  isGeneratingBackground?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -18,11 +23,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   userState,
   onUpdateUser,
   theme,
-  toggleTheme
+  toggleTheme,
+  onUpgrade,
+  onHelp,
+  onGenerateBackground,
+  isGeneratingBackground
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState<'profile' | 'community' | 'feedback' | 'about'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'community' | 'feedback' | 'help' | 'about'>('profile');
   
   // Feedback State
   const [feedbackText, setFeedbackText] = useState('');
@@ -79,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tabs */}
         <div className="flex border-b border-slate-100 dark:border-slate-700 shrink-0 overflow-x-auto no-scrollbar">
-          {['profile', 'community', 'feedback', 'about'].map((tab) => (
+          {['profile', 'community', 'feedback', 'help', 'about'].map((tab) => (
              <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -125,27 +134,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Theme Toggle */}
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${theme === 'dark' ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}>
-                    {theme === 'dark' ? (
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                    ) : (
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 dark:text-white text-sm">Dark Mode</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Switch between light and dark themes</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={toggleTheme}
-                  className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out relative ${theme === 'dark' ? 'bg-brand-600' : 'bg-slate-200'}`}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                </button>
+              {/* Appearance Section */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full ${theme === 'dark' ? 'bg-indigo-900/50 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}>
+                        {theme === 'dark' ? (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 dark:text-white text-sm">Dark Mode</h3>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={toggleTheme}
+                      className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out relative ${theme === 'dark' ? 'bg-brand-600' : 'bg-slate-200'}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                    </button>
+                 </div>
+                 
+                 {onGenerateBackground && (
+                   <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                     <div className="flex justify-between items-center mb-2">
+                       <h3 className="font-bold text-slate-800 dark:text-white text-sm">App Background</h3>
+                     </div>
+                     <Button 
+                        onClick={onGenerateBackground} 
+                        isLoading={isGeneratingBackground}
+                        className="w-full text-xs py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
+                      >
+                        {isGeneratingBackground ? 'Generating Art...' : 'Generate AI Wallpaper (Imagen)'}
+                      </Button>
+                      <p className="text-[10px] text-slate-400 mt-2 text-center">Uses Google Imagen to create a unique neural wallpaper.</p>
+                   </div>
+                 )}
               </div>
 
               {/* Subscription Card */}
@@ -166,9 +192,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    )}
                  </div>
                  
-                 {userState.isPremium && (
+                 {userState.isPremium ? (
                    <div className="text-sm border-t border-amber-200/50 dark:border-amber-700/50 pt-3 mt-1">
                      <p className="text-amber-800 dark:text-amber-200"><span className="opacity-70">Expires:</span> {formatDate(userState.premiumExpiryDate)}</p>
+                   </div>
+                 ) : (
+                   <div className="mt-4">
+                     <Button onClick={onUpgrade} className="w-full bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 border-0 shadow-md">
+                       Upgrade to Premium
+                     </Button>
                    </div>
                  )}
               </div>
@@ -298,6 +330,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </Button>
                 </form>
               )}
+            </div>
+          )}
+
+          {activeTab === 'help' && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Help Center</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Frequently asked questions and guides.</p>
+              </div>
+
+              <div className="space-y-3">
+                 <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">How do I upload notes?</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Click on the "Access Internal Storage" box in the sidebar to select files (PDF, Word, or Images) from your device.</p>
+                 </div>
+                 <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Is there a limit to questions?</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Free users can ask 5 questions per hour. Premium users have unlimited access.</p>
+                 </div>
+                 <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">How do I pay?</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Go to Settings > Upgrade to Premium. You can pay via M-PESA to the Pochi la Biashara number.</p>
+                 </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                 <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3 text-center">Still need help?</p>
+                 <Button onClick={onHelp} className="w-full bg-brand-600 hover:bg-brand-700">
+                   Ask AI Assistant for Help
+                 </Button>
+              </div>
             </div>
           )}
 
