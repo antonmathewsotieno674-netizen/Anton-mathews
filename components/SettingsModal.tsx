@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { UserState, LibraryItem } from '../types';
 import { Button } from './Button';
 import { SOCIAL_LINKS, APP_NAME, APP_VERSION, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from '../constants';
@@ -10,6 +11,7 @@ interface SettingsModalProps {
   onClose: () => void;
   userState: UserState;
   onUpdateUser: (name: string) => void;
+  onUpdateProfilePicture?: (base64Image?: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   onUpgrade: () => void;
@@ -25,6 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose, 
   userState,
   onUpdateUser,
+  onUpdateProfilePicture,
   theme,
   toggleTheme,
   onUpgrade,
@@ -38,6 +41,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedName, setEditedName] = useState(userState.user?.name || '');
   const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about'>(initialTab);
   
+  // Profile Picture Upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Legal View State for About Tab
   const [legalView, setLegalView] = useState<'none' | 'privacy' | 'terms'>('none');
 
@@ -76,6 +82,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSave = () => {
     onUpdateUser(editedName);
     setIsEditing(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image is too large. Please select an image under 2MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (onUpdateProfilePicture && typeof reader.result === 'string') {
+          onUpdateProfilePicture(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    if (onUpdateProfilePicture) {
+      onUpdateProfilePicture(undefined);
+    }
   };
 
   const handleSendFeedback = (e: React.FormEvent) => {
@@ -153,9 +183,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-6">
               {/* Avatar Section */}
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center text-brand-700 dark:text-brand-300 text-2xl font-bold border border-brand-200 dark:border-brand-700 shadow-sm shrink-0">
-                  {userState.user.name.charAt(0).toUpperCase()}
+                <div className="relative group shrink-0">
+                  <div className="w-20 h-20 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center text-brand-700 dark:text-brand-300 text-3xl font-bold border-2 border-brand-200 dark:border-brand-700 shadow-sm overflow-hidden">
+                    {userState.user.profilePicture ? (
+                      <img 
+                        src={userState.user.profilePicture} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      userState.user.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  
+                  {/* Edit Photo Overlay */}
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
+                    title="Change Photo"
+                  >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept="image/png, image/jpeg, image/jpg"
+                  />
                 </div>
+
                 <div className="min-w-0 flex-1">
                   {isEditing ? (
                     <div className="flex gap-2">
@@ -168,12 +228,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <Button size="sm" onClick={handleSave} className="py-1 px-3 text-xs">Save</Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                       <h3 className="text-lg font-bold text-slate-800 dark:text-white truncate">{userState.user.name}</h3>
-                       <button onClick={() => setIsEditing(true)} className="text-xs text-brand-600 dark:text-brand-400 hover:underline shrink-0">Edit</button>
+                    <div className="flex flex-col items-start gap-1">
+                       <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-slate-800 dark:text-white truncate">{userState.user.name}</h3>
+                          <button onClick={() => setIsEditing(true)} className="text-xs text-brand-600 dark:text-brand-400 hover:underline shrink-0">Edit Name</button>
+                       </div>
+                       {userState.user.profilePicture && (
+                         <button onClick={handleRemovePhoto} className="text-xs text-red-500 hover:text-red-600 hover:underline">Remove Photo</button>
+                       )}
                     </div>
                   )}
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{userState.user.email || userState.user.phone || 'No contact info'}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-1">{userState.user.email || userState.user.phone || 'No contact info'}</p>
                 </div>
               </div>
 

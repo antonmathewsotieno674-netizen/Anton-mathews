@@ -42,6 +42,7 @@ export interface User {
   email?: string;
   phone?: string;
   authMethod: 'email' | 'phone' | 'google';
+  profilePicture?: string; // Base64 string of the user's profile picture
 }
 
 export interface PaymentRecord {

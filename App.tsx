@@ -248,6 +248,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateProfilePicture = (base64Image?: string) => {
+    if (userState.user) {
+      setUserState(prev => ({
+        ...prev,
+        user: { ...prev.user!, profilePicture: base64Image }
+      }));
+    }
+  };
+
   // Generate AI Background Handler
   const handleGenerateBackground = async () => {
     setIsGeneratingBg(true);
@@ -578,8 +587,12 @@ const App: React.FC = () => {
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
               title="View Profile and Settings"
             >
-               <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800">
-                 {userState.user.name.charAt(0).toUpperCase()}
+               <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800 overflow-hidden relative">
+                 {userState.user.profilePicture ? (
+                   <img src={userState.user.profilePicture} alt={userState.user.name} className="w-full h-full object-cover" />
+                 ) : (
+                   userState.user.name.charAt(0).toUpperCase()
+                 )}
                </div>
                <div className="flex flex-col items-start">
                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-tight">{userState.user.name}</span>
@@ -832,6 +845,7 @@ const App: React.FC = () => {
         onClose={() => setShowSettingsModal(false)}
         userState={userState}
         onUpdateUser={handleUpdateUserName}
+        onUpdateProfilePicture={handleUpdateProfilePicture}
         theme={theme}
         toggleTheme={toggleTheme}
         onUpgrade={triggerUpgrade}
