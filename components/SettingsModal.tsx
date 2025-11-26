@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserState, LibraryItem } from '../types';
 import { Button } from './Button';
@@ -36,6 +37,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [editedName, setEditedName] = useState(userState.user?.name || '');
   const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about'>(initialTab);
   
+  // Legal View State for About Tab
+  const [legalView, setLegalView] = useState<'none' | 'privacy' | 'terms'>('none');
+
   // Library State
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +53,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
+      setLegalView('none'); // Reset legal view on open
     }
   }, [isOpen, initialTab]);
 
@@ -127,7 +132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {['profile', 'library', 'community', 'feedback', 'help', 'about'].map((tab) => (
              <button 
                 key={tab}
-                onClick={() => setActiveTab(tab as any)}
+                onClick={() => { setActiveTab(tab as any); setLegalView('none'); }}
                 className={`flex-1 min-w-[80px] py-3 text-sm font-medium transition-colors capitalize whitespace-nowrap px-4 ${
                   activeTab === tab 
                     ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-slate-50/50 dark:bg-slate-700/30' 
@@ -443,29 +448,73 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {activeTab === 'about' && (
-            <div className="text-center space-y-6">
-               <div className="flex flex-col items-center">
-                 <div className="w-20 h-20 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg mb-4">M</div>
-                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">{APP_NAME}</h3>
-                 <p className="text-sm text-slate-500 dark:text-slate-400">Version {APP_VERSION}</p>
-                 <p className="text-xs text-slate-400 mt-1">© {new Date().getFullYear()} MOA AI. All rights reserved.</p>
-               </div>
-               
-               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
-                  <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    Disclaimer
-                  </h4>
-                  <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
-                    MOA AI uses advanced artificial intelligence to analyze your notes. While we strive for accuracy, AI can sometimes make mistakes or hallucinate information. Always verify critical information from your original study materials.
-                  </p>
-               </div>
+            <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4">
+               {legalView === 'none' && (
+                 <>
+                   <div className="flex flex-col items-center">
+                     <div className="w-20 h-20 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg mb-4">M</div>
+                     <h3 className="text-xl font-bold text-slate-800 dark:text-white">{APP_NAME}</h3>
+                     <p className="text-sm text-slate-500 dark:text-slate-400">Version {APP_VERSION}</p>
+                     <p className="text-xs text-slate-400 mt-1">© {new Date().getFullYear()} MOA AI. All rights reserved.</p>
+                   </div>
+                   
+                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
+                      <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        Disclaimer
+                      </h4>
+                      <p className="text-xs text-amber-900/80 dark:text-amber-200/80 leading-relaxed">
+                        MOA AI uses advanced artificial intelligence to analyze your notes. While we strive for accuracy, AI can sometimes make mistakes or hallucinate information. Always verify critical information from your original study materials.
+                      </p>
+                   </div>
 
-               <div className="flex justify-center gap-4 text-xs text-brand-600 dark:text-brand-400">
-                 <a href="#" className="hover:underline">Privacy Policy</a>
-                 <span>•</span>
-                 <a href="#" className="hover:underline">Terms of Service</a>
-               </div>
+                   <div className="flex justify-center gap-4 text-xs text-brand-600 dark:text-brand-400">
+                     <button onClick={() => setLegalView('privacy')} className="hover:underline">Privacy Policy</button>
+                     <span>•</span>
+                     <button onClick={() => setLegalView('terms')} className="hover:underline">Terms of Service</button>
+                   </div>
+                 </>
+               )}
+
+               {legalView === 'privacy' && (
+                 <div className="text-left space-y-4 animate-in fade-in slide-in-from-right-4">
+                   <button onClick={() => setLegalView('none')} className="flex items-center text-sm text-brand-600 dark:text-brand-400 mb-4 hover:underline">
+                      <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      Back to About
+                   </button>
+                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Privacy Policy</h3>
+                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-3 h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <p><strong>1. Introduction:</strong> Welcome to MOA AI. We respect your privacy and are committed to protecting your personal data. This policy outlines how we handle your information.</p>
+                     <p><strong>2. Data Collection:</strong> We collect user-provided information such as uploaded documents, text inputs, and account details (name, email, phone number). We also automatically collect usage statistics to improve app performance.</p>
+                     <p><strong>3. AI Processing:</strong> Your notes, files, and chat queries are processed by Google Gemini AI. Data sent to the AI model is used strictly for generating responses for your session. We do not sell your personal data to third parties.</p>
+                     <p><strong>4. Local Storage:</strong> Your chat history and preferences are stored locally on your device using browser LocalStorage. Clearing your browser cache will delete this history.</p>
+                     <p><strong>5. Third-Party Services:</strong> We use third-party services for specific functions: Google (AI processing, Auth), and various payment gateways (M-PESA, PayPal, Stripe). These parties process data according to their own privacy policies.</p>
+                     <p><strong>6. Data Security:</strong> We implement industry-standard encryption and security measures to protect your data. However, no method of transmission over the internet is 100% secure.</p>
+                     <p><strong>7. User Rights:</strong> You have the right to access, correct, or request deletion of your account data. You can exercise these rights by contacting our support team via the settings menu.</p>
+                     <p><strong>8. Updates:</strong> We may update this policy from time to time. Continued use of the app constitutes acceptance of the new policy.</p>
+                   </div>
+                 </div>
+               )}
+
+               {legalView === 'terms' && (
+                 <div className="text-left space-y-4 animate-in fade-in slide-in-from-right-4">
+                    <button onClick={() => setLegalView('none')} className="flex items-center text-sm text-brand-600 dark:text-brand-400 mb-4 hover:underline">
+                      <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      Back to About
+                   </button>
+                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Terms of Service</h3>
+                   <div className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-600 dark:text-slate-300 space-y-3 h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <p><strong>1. Acceptance of Terms:</strong> By accessing or using MOA AI, you agree to be bound by these Terms of Service. If you do not agree, please discontinue use immediately.</p>
+                     <p><strong>2. Educational License:</strong> MOA AI grants you a limited, non-exclusive, non-transferable license to use the application for personal educational and study purposes.</p>
+                     <p><strong>3. AI Limitations:</strong> The AI services are provided "as is". MOA AI does not guarantee the accuracy, completeness, or reliability of AI-generated responses. Users must verify critical information independently. MOA AI is not liable for errors in study materials.</p>
+                     <p><strong>4. User Conduct:</strong> You agree not to upload illegal, harmful, explicit, or offensive content. You are responsible for maintaining the confidentiality of your account credentials.</p>
+                     <p><strong>5. Intellectual Property:</strong> You retain ownership of the notes you upload. By uploading, you grant MOA AI a license to process the content to provide the service. The app interface and code are owned by MOA AI.</p>
+                     <p><strong>6. Premium Subscriptions:</strong> Premium features are billed as described in the payment section. Payments are non-refundable unless required by law. We reserve the right to change pricing with notice.</p>
+                     <p><strong>7. Termination:</strong> We reserve the right to suspend or terminate accounts that violate these terms or engage in fraudulent activity.</p>
+                     <p><strong>8. Governing Law:</strong> These terms are governed by the laws of Kenya. Any disputes shall be resolved in the courts of Kenya.</p>
+                   </div>
+                 </div>
+               )}
             </div>
           )}
 
