@@ -1,0 +1,5 @@
+{
+  "name": "NoteGenius AI",
+  "description": "Upload notes in various formats and ask questions using Gemini AI. Features a premium monetization gate for advanced analysis.",
+  "requestFramePermissions": []
+}
