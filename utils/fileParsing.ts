@@ -1,3 +1,4 @@
+
 import * as pdfjsLib from 'pdfjs-dist';
 import * as mammoth from 'mammoth';
 
@@ -12,10 +13,11 @@ if (pdfjs.GlobalWorkerOptions) {
 
 export const parseFileContent = async (file: File): Promise<string> => {
   const fileType = file.type;
+  const fileName = file.name.toLowerCase();
   
   try {
     // PDF Handling
-    if (fileType === 'application/pdf') {
+    if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
       const arrayBuffer = await file.arrayBuffer();
       // Use the resolved pdfjs object
       const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
@@ -32,7 +34,11 @@ export const parseFileContent = async (file: File): Promise<string> => {
     } 
     
     // Word (.docx) Handling
-    else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    // Mammoth only supports .docx, not .doc
+    else if (
+      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+      fileName.endsWith('.docx')
+    ) {
       const arrayBuffer = await file.arrayBuffer();
       // Handle mammoth import similarly to pdfjs
       const mammothLib = (mammoth as any).default || mammoth;
@@ -40,14 +46,29 @@ export const parseFileContent = async (file: File): Promise<string> => {
       return result.value;
     }
     
-    // Plain Text Handling
-    else if (fileType.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.txt') || file.name.endsWith('.js') || file.name.endsWith('.json')) {
-      return await file.text();
+    // Fallback: Attempt to read ANY other file as text
+    // This supports .txt, .md, .js, .json, .csv, .log, .xml, .rtf (raw), code files, etc.
+    else {
+      // Basic safeguard for very large files which might freeze the browser if read as text
+      if (file.size > 15 * 1024 * 1024) { // 15MB limit
+         throw new Error('File is too large to read as text. Please upload a smaller file.');
+      }
+      
+      try {
+        const text = await file.text();
+        // If the file is binary (like an executable or weird format), extracting text might result in garbage.
+        // We return it anyway, letting the AI try to make sense of it or the user to see it.
+        if (text.length === 0) {
+          throw new Error('File appears to be empty.');
+        }
+        return text;
+      } catch (err) {
+        console.error("Text read error:", err);
+        throw new Error("Could not read this file format. It might be a binary file or corrupted.");
+      }
     }
-    
-    throw new Error('Unsupported file type for text extraction');
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error parsing file:", error);
-    throw new Error("Failed to read file content. Please ensure the file is not corrupted.");
+    throw new Error(error.message || "Failed to read file content.");
   }
 };

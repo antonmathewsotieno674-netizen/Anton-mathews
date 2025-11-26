@@ -143,7 +143,10 @@ const App: React.FC = () => {
     }, 300);
 
     try {
-      if (selectedFile.type.startsWith('image/')) {
+      // Robust check for images: rely on type or extension
+      const isImage = selectedFile.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(selectedFile.name);
+
+      if (isImage) {
         setProcessingStatus('Scanning image...');
         
         const reader = new FileReader();
@@ -160,7 +163,7 @@ const App: React.FC = () => {
 
         setFile({
           name: selectedFile.name,
-          type: selectedFile.type,
+          type: selectedFile.type || 'image/unknown',
           content: extractedText,
           category: 'text',
           originalImage: base64Image
@@ -173,7 +176,7 @@ const App: React.FC = () => {
         
         setFile({
           name: selectedFile.name,
-          type: selectedFile.type,
+          type: selectedFile.type || 'application/octet-stream',
           content: textContent,
           category: 'text'
         });
@@ -182,7 +185,7 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". Please ensure it's a valid format.`, isError: true }]);
+      setMessages(prev => [...prev, { role: 'model', text: `Sorry, I couldn't read the file "${selectedFile.name}". It might be corrupted or in an unsupported format.`, isError: true }]);
     } finally {
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -353,8 +356,8 @@ const App: React.FC = () => {
           {/* Left Sidebar: File Upload & Contacts */}
           <div className="w-full md:w-80 bg-white/60 backdrop-blur-md border-r border-white/50 p-6 flex flex-col z-10 overflow-y-auto">
             <div className="flex-1">
-              <h2 className="font-semibold text-slate-800 mb-2">Upload Notes</h2>
-              <p className="text-sm text-slate-500 mb-4">Select files from your device storage.</p>
+              <h2 className="font-semibold text-slate-800 mb-2">Internal Storage</h2>
+              <p className="text-sm text-slate-500 mb-4">Select any document from your phone.</p>
               
               <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${isProcessingFile ? 'border-brand-400 bg-brand-50' : 'border-slate-300 bg-white/50 hover:bg-white/80 hover:border-brand-300'} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
@@ -371,10 +374,10 @@ const App: React.FC = () => {
                   ) : (
                     <>
                       <div className="mb-3 p-3 bg-brand-50 rounded-full group-hover:bg-brand-100 transition-colors text-brand-500">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                       </div>
-                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Browse Device Files</p>
-                      <p className="text-xs text-slate-400">PDF, DOCX, TXT, Images</p>
+                      <p className="text-sm font-medium text-slate-700 mb-1 group-hover:text-brand-700">Access Internal Storage</p>
+                      <p className="text-xs text-slate-400">PDF, Word, Images & All Documents</p>
                     </>
                   )}
                 </div>
@@ -382,7 +385,7 @@ const App: React.FC = () => {
                   type="file" 
                   className="hidden" 
                   onChange={handleFileUpload} 
-                  accept=".txt,.md,.js,.json,.csv,.pdf,.doc,.docx,image/*" 
+                  accept="*" // Allow user to browse all files in internal storage
                   disabled={isProcessingFile}
                 />
               </label>
