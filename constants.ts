@@ -19,6 +19,11 @@ Answer questions strictly based on the provided context if possible.
 If the context is insufficient, use your general knowledge but mention that it's outside the provided notes.
 Be concise, professional, and educational.`;
 
+export const SOCIAL_LINKS = {
+  whatsapp: "https://wa.me/254757634590", // Direct to WhatsApp
+  telegram: "https://t.me/moa_ai" // Placeholder for Telegram
+};
+
 export const INITIAL_LIBRARY_DATA = [
   {
     id: 'lib_001',

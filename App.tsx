@@ -5,7 +5,7 @@ import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIA
 import { generateResponse, performOCR } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
-import { UserProfileModal } from './components/UserProfileModal';
+import { SettingsModal } from './components/SettingsModal';
 import { LibraryModal } from './components/LibraryModal';
 import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -397,7 +397,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => setShowSettingsModal(true)}
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 p-1.5 rounded-lg transition-colors"
             >
                <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs border border-brand-200">
@@ -405,7 +405,7 @@ const App: React.FC = () => {
                </div>
                <div className="flex flex-col items-start">
                  <span className="text-sm font-medium text-slate-700 leading-tight">{userState.user.name}</span>
-                 <span className="text-[10px] text-slate-400">View Profile</span>
+                 <span className="text-[10px] text-slate-400">Settings</span>
                </div>
             </button>
             <button onClick={handleLogout} className="md:hidden text-xs text-slate-500 font-medium">Logout</button>
@@ -552,8 +552,19 @@ const App: React.FC = () => {
                 </div>
               )}
               
-              {/* Contact Section */}
-              <ContactSection />
+              {/* Settings Trigger Button */}
+              <button 
+                onClick={() => setShowSettingsModal(true)}
+                className="w-full flex items-center gap-3 p-3 bg-white/50 hover:bg-white rounded-xl border border-white/40 hover:border-slate-200 transition-all text-slate-700 font-medium shadow-sm group"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:text-brand-600 group-hover:bg-brand-50 transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span>Settings & Profile</span>
+              </button>
             </div>
           </div>
 
@@ -615,9 +626,9 @@ const App: React.FC = () => {
           onSuccess={handlePaymentSuccess} 
         />
         
-        <UserProfileModal 
-          isOpen={showProfileModal} 
-          onClose={() => setShowProfileModal(false)}
+        <SettingsModal 
+          isOpen={showSettingsModal} 
+          onClose={() => setShowSettingsModal(false)}
           userState={userState}
           onUpdateUser={handleUpdateUserName}
         />
