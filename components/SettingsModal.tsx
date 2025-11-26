@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserState, LibraryItem } from '../types';
 import { Button } from './Button';
@@ -104,8 +105,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Library Logic
   const categories = ['All', ...Array.from(new Set(libraryItems.map(item => item.category)))];
   const filteredLibraryItems = libraryItems.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = item.title.toLowerCase().includes(query) || 
+                          item.description.toLowerCase().includes(query);
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
@@ -283,11 +285,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </span>
                   <input 
                     type="text" 
-                    placeholder="Search notes..." 
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm"
+                    placeholder="Search notes by title or description..." 
+                    className="w-full pl-10 pr-10 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                      title="Clear search"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {categories.map(cat => (

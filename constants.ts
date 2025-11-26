@@ -1,4 +1,5 @@
 
+
 export const APP_NAME = "MOA AI";
 export const APP_VERSION = "1.1.0";
 export const PREMIUM_PRICE_KSH = 20;
@@ -27,7 +28,7 @@ If the context is insufficient, use your general knowledge but mention that it's
 Be concise, professional, and educational.`;
 
 export const SOCIAL_LINKS = {
-  whatsapp: "https://wa.me/254757634590", // Direct to WhatsApp
+  whatsapp: "https://whatsapp.com/channel/0029VbC7zQcAO7RJFqYIIA2A", // Direct to WhatsApp Channel
   telegram: "https://t.me/moa_ai" // Placeholder for Telegram
 };
 
