@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
@@ -6,7 +5,6 @@ import { generateResponse, performOCR, generateWallpaper } from './services/gemi
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
-import { LibraryModal } from './components/LibraryModal';
 import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
 import { ContactSection } from './components/ContactSection';
@@ -55,6 +53,10 @@ const App: React.FC = () => {
     return 'light';
   });
 
+  // Settings Modal State
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community'>('profile');
+
   // Apply Theme
   useEffect(() => {
     const root = window.document.documentElement;
@@ -81,8 +83,6 @@ const App: React.FC = () => {
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
   // PWA Install State
@@ -344,7 +344,7 @@ const App: React.FC = () => {
   };
 
   const handleImportFromLibrary = (item: LibraryItem) => {
-    setShowLibraryModal(false);
+    setShowSettingsModal(false); // Close settings
     setIsProcessingFile(true);
     setUploadProgress(0);
     setProcessingStatus('Importing from library...');
@@ -446,6 +446,11 @@ const App: React.FC = () => {
     setInput("How do I use MOA AI effectively?");
   };
 
+  const openSettingsTo = (tab: 'profile' | 'library' | 'community') => {
+    setSettingsInitialTab(tab);
+    setShowSettingsModal(true);
+  };
+
   // Helper to get days remaining on premium
   const getDaysRemaining = () => {
     if (!userState.premiumExpiryDate) return 0;
@@ -477,7 +482,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setShowSettingsModal(true)}
+              onClick={() => openSettingsTo('profile')}
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
             >
                <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800">
@@ -588,132 +593,74 @@ const App: React.FC = () => {
                 />
               </label>
 
-              {/* Library Access Button */}
-              <button 
-                onClick={() => setShowLibraryModal(true)}
-                className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all font-medium text-sm"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                Search Community Notes
-              </button>
-
-              {file && (
-                <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-4 border border-brand-100 dark:border-slate-700 shadow-sm animate-fade-in-up mb-6">
-                  <div className="flex items-start gap-3">
-                    {file.originalImage ? (
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 border border-slate-200 dark:border-slate-600">
-                        <img src={file.originalImage} alt="Thumbnail" className="w-full h-full object-cover" />
+              {/* Share Prompt (Conditional) */}
+              {showSharePrompt && file && (
+                <div className="mb-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 animate-in slide-in-from-left-2">
+                   <div className="flex items-start gap-3">
+                      <div className="p-2 bg-indigo-100 dark:bg-indigo-800 rounded-full text-indigo-600 dark:text-indigo-300 shrink-0">
+                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                       </div>
-                    ) : (
-                      <div className="p-2 bg-brand-50 dark:bg-slate-700 rounded-md text-brand-500 flex-shrink-0">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      </div>
-                    )}
-                    <div className="overflow-hidden flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-brand-900 dark:text-brand-100 truncate" title={file.name}>{file.name}</p>
-                        <p className="text-xs text-brand-700 dark:text-brand-300 uppercase mt-0.5 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-                          Ready for questions
-                        </p>
-                    </div>
-                  </div>
-                  
-                  {/* Share to Library Section */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                    {showSharePrompt ? (
-                      <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-xl border border-brand-200 dark:border-brand-800 animate-in zoom-in duration-300">
-                        <div className="flex items-start gap-2 mb-2">
-                          <div className="p-1.5 bg-white dark:bg-brand-900/50 rounded-full text-brand-600 shrink-0 shadow-sm">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">Share with Community?</h4>
-                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-tight">
-                              Would you like to publish this note to the library for others?
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <button 
-                            onClick={handlePublishToLibrary}
+                      <div>
+                        <h4 className="font-bold text-indigo-900 dark:text-indigo-200 text-sm">Share Note?</h4>
+                        <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1 mb-2">Help others by adding "{file.name}" to the Community Library.</p>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="secondary" 
+                            onClick={handlePublishToLibrary} 
                             disabled={isPublishing}
-                            className="flex-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1"
+                            className="text-xs py-1.5 h-auto bg-indigo-600 hover:bg-indigo-700"
                           >
-                            {isPublishing ? 'Sharing...' : 'Yes, Share'}
-                          </button>
+                             {isPublishing ? 'Sharing...' : 'Yes, Share'}
+                          </Button>
                           <button 
-                            onClick={() => setShowSharePrompt(false)}
-                            className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs font-medium rounded-lg transition-colors"
+                             onClick={() => setShowSharePrompt(false)}
+                             className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 px-2"
                           >
                             No thanks
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      <button 
-                        onClick={handlePublishToLibrary}
-                        disabled={isPublishing}
-                        className="w-full text-xs flex items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                      >
-                        {isPublishing ? (
-                          <>
-                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Publishing...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                            Share to Community
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
+                   </div>
                 </div>
               )}
-            </div>
 
-            <div className="mt-6 flex flex-col gap-6">
-              
-              {/* Settings Trigger Button */}
+              {/* Library Access Button */}
               <button 
-                onClick={() => setShowSettingsModal(true)}
-                className="w-full flex items-center gap-3 p-3 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl border border-white/40 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all text-slate-700 dark:text-slate-300 font-medium shadow-sm group"
+                onClick={() => openSettingsTo('library')}
+                className="w-full flex items-center justify-center gap-2 mb-6 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all font-medium text-sm"
               >
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-brand-600 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <span>Settings & Profile</span>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Community Library
               </button>
+
+              <ContactSection />
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+               <button onClick={() => openSettingsTo('profile')} className="flex items-center gap-2 w-full p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-600 dark:text-slate-400">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  <span className="text-sm font-medium">Settings & Account</span>
+               </button>
             </div>
           </div>
 
-          {/* Right Area: Chat */}
-          <div className="flex-1 flex flex-col h-full relative bg-white/40 dark:bg-slate-900/40">
-             <ChatInterface messages={messages} isLoading={isLoading} />
-             
-             <div className="p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-t border-white/50 dark:border-slate-700 transition-colors">
-                <form onSubmit={handleSendMessage} className="flex gap-2 relative max-w-4xl mx-auto">
-                  <input 
-                    type="text" 
+          {/* Right Area: Chat Interface */}
+          <div className="flex-1 flex flex-col relative h-full overflow-hidden">
+            <ChatInterface messages={messages} isLoading={isLoading} />
+
+            {/* Message Input */}
+            <div className="p-4 md:p-6 pb-6 border-t border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md relative z-10 transition-colors">
+              <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={
-                      isListening 
-                        ? "Listening..." 
-                        : file 
-                          ? `Ask a question about "${file.name}"...`
-                          : "Upload from device or Library to get started..."
-                    }
-                    className={`flex-1 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
-                    disabled={(!file && !input) || isLoading}
+                    placeholder={file ? `Ask a question about "${file.name}"...` : "Upload a note to start asking questions..."}
+                    className="w-full pl-4 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-100"
                   />
                   
                   {/* Microphone Button */}
@@ -721,57 +668,60 @@ const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={toggleListening}
-                      disabled={(!file && !input) || isLoading}
-                      className={`absolute right-12 top-1 bottom-1 px-3 rounded-md transition-all ${
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all duration-200 ${
                         isListening 
-                          ? 'text-red-500 bg-red-50 dark:bg-red-900/30 animate-pulse' 
-                          : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50 dark:hover:bg-slate-600'
-                      } ${((!file && !input) || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      title={isListening ? "Stop Listening" : "Start Voice Input"}
+                          ? 'bg-red-100 text-red-600 animate-pulse' 
+                          : 'text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-600'
+                      }`}
+                      title="Speak"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                       </svg>
                     </button>
                   )}
+                </div>
 
-                  <Button type="submit" disabled={(!file && !input) || isLoading || !input.trim()} className="absolute right-1 top-1 bottom-1 px-3 rounded-md">
-                     <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
-                  </Button>
-                </form>
-                <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                  {isListening ? <span className="text-red-500 font-semibold animate-pulse">Recording... Click mic to stop.</span> : "MOA AI"}
-                </p>
-             </div>
+                <Button 
+                  type="submit" 
+                  disabled={!input.trim() || isLoading}
+                  className="rounded-2xl px-6 bg-brand-600 hover:bg-brand-700 shadow-brand-500/25 shadow-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Button>
+              </form>
+              <div className="text-center mt-2">
+                 <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                    MOA AI can make mistakes. Verify important information. {userState.isPremium ? 'Premium Plan Active.' : `${FREE_QUESTIONS_LIMIT} free questions/hr.`}
+                 </p>
+              </div>
+            </div>
           </div>
-
         </main>
-
-        <PaymentModal 
-          isOpen={showPaymentModal} 
-          onClose={() => setShowPaymentModal(false)} 
-          onSuccess={handlePaymentSuccess} 
-        />
-        
-        <SettingsModal 
-          isOpen={showSettingsModal} 
-          onClose={() => setShowSettingsModal(false)}
-          userState={userState}
-          onUpdateUser={handleUpdateUserName}
-          theme={theme}
-          toggleTheme={toggleTheme}
-          onUpgrade={triggerUpgrade}
-          onHelp={handleAskAIHelp}
-          onGenerateBackground={handleGenerateBackground}
-          isGeneratingBackground={isGeneratingBg}
-        />
-
-        <LibraryModal
-          isOpen={showLibraryModal}
-          onClose={() => setShowLibraryModal(false)}
-          onImport={handleImportFromLibrary}
-        />
       </div>
+
+      <PaymentModal 
+        isOpen={showPaymentModal} 
+        onClose={() => setShowPaymentModal(false)}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <SettingsModal 
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        userState={userState}
+        onUpdateUser={handleUpdateUserName}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        onUpgrade={triggerUpgrade}
+        onHelp={handleAskAIHelp}
+        onGenerateBackground={handleGenerateBackground}
+        isGeneratingBackground={isGeneratingBg}
+        onImport={handleImportFromLibrary}
+        initialTab={settingsInitialTab}
+      />
     </div>
   );
 };

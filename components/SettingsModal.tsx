@@ -1,8 +1,7 @@
-
-import React, { useState } from 'react';
-import { UserState } from '../types';
+import React, { useState, useEffect } from 'react';
+import { UserState, LibraryItem } from '../types';
 import { Button } from './Button';
-import { SOCIAL_LINKS, APP_NAME, APP_VERSION } from '../constants';
+import { SOCIAL_LINKS, APP_NAME, APP_VERSION, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from '../constants';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,6 +14,8 @@ interface SettingsModalProps {
   onHelp: () => void;
   onGenerateBackground?: () => Promise<void>;
   isGeneratingBackground?: boolean;
+  onImport: (item: LibraryItem) => void;
+  initialTab?: 'profile' | 'library' | 'community';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -27,16 +28,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpgrade,
   onHelp,
   onGenerateBackground,
-  isGeneratingBackground
+  isGeneratingBackground,
+  onImport,
+  initialTab = 'profile'
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState<'profile' | 'community' | 'feedback' | 'help' | 'about'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about'>(initialTab);
   
+  // Library State
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+
   // Feedback State
   const [feedbackText, setFeedbackText] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  // Load library items when library tab is active
+  useEffect(() => {
+    if (activeTab === 'library') {
+      const savedLibrary = localStorage.getItem(LIBRARY_STORAGE_KEY);
+      if (savedLibrary) {
+        setLibraryItems(JSON.parse(savedLibrary));
+      } else {
+        setLibraryItems(INITIAL_LIBRARY_DATA as LibraryItem[]);
+        localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(INITIAL_LIBRARY_DATA));
+      }
+    }
+  }, [activeTab]);
 
   if (!isOpen || !userState.user) return null;
 
@@ -69,13 +96,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     });
   };
 
+  // Library Logic
+  const categories = ['All', ...Array.from(new Set(libraryItems.map(item => item.category)))];
+  const filteredLibraryItems = libraryItems.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         
         {/* Header */}
         <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 p-4 flex items-center justify-between shrink-0">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Settings</h2>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Settings & Library</h2>
           <button 
              onClick={onClose}
              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
@@ -88,13 +124,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tabs - Scrollable with hidden scrollbar */}
         <div className="flex border-b border-slate-100 dark:border-slate-700 shrink-0 overflow-x-auto scrollbar-hide">
-          {['profile', 'community', 'feedback', 'help', 'about'].map((tab) => (
+          {['profile', 'library', 'community', 'feedback', 'help', 'about'].map((tab) => (
              <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
                 className={`flex-1 min-w-[80px] py-3 text-sm font-medium transition-colors capitalize whitespace-nowrap px-4 ${
                   activeTab === tab 
-                    ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400' 
+                    ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-slate-50/50 dark:bg-slate-700/30' 
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
@@ -167,9 +203,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         isLoading={isGeneratingBackground}
                         className="w-full text-xs py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
                       >
-                        {isGeneratingBackground ? 'Generating Art...' : 'Generate AI Wallpaper (Imagen)'}
+                        {isGeneratingBackground ? 'Generating Art...' : 'Generate AI Wallpaper'}
                       </Button>
-                      <p className="text-[10px] text-slate-400 mt-2 text-center">Uses Google Imagen to create a unique neural wallpaper.</p>
+                      <p className="text-[10px] text-slate-400 mt-2 text-center">Uses Google GenAI to create a unique neural wallpaper.</p>
                    </div>
                  )}
               </div>
@@ -196,7 +232,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-500 dark:text-slate-400">Subscription Expiry</span>
                       <span className={`font-medium ${userState.isPremium ? 'text-amber-800 dark:text-amber-200' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {formatDate(userState.premiumExpiryDate)}
+                        {userState.isPremium ? formatDate(userState.premiumExpiryDate) : 'N/A'}
                       </span>
                    </div>
                    
@@ -227,6 +263,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'library' && (
+            <div className="space-y-4">
+              {/* Search & Filter */}
+              <div className="flex flex-col gap-3">
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </span>
+                  <input 
+                    type="text" 
+                    placeholder="Search notes..." 
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                        activeCategory === cat 
+                          ? 'bg-brand-600 text-white border-brand-600' 
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="grid grid-cols-1 gap-3">
+                {filteredLibraryItems.map(item => (
+                  <div key={item.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow flex flex-col group">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">
+                        {item.category}
+                      </div>
+                      <span className="text-xs text-slate-400">{item.date}</span>
+                    </div>
+                    <h3 className="font-bold text-slate-800 dark:text-white mb-1 group-hover:text-brand-600 transition-colors">{item.title}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{item.description}</p>
+                    
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700 mt-auto">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          {item.author.charAt(0)}
+                        </div>
+                        <span className="text-xs text-slate-600 dark:text-slate-400">{item.author}</span>
+                      </div>
+                      <Button size="sm" onClick={() => onImport(item)} className="text-xs px-3 py-1 h-8">
+                        Import
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                {filteredLibraryItems.length === 0 && (
+                  <div className="text-center py-8 text-slate-400 dark:text-slate-500">
+                    <p className="text-sm">No notes found.</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
