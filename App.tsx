@@ -7,7 +7,6 @@ import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
 import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
-import { ContactSection } from './components/ContactSection';
 import { InteractiveBackground } from './components/InteractiveBackground';
 import { parseFileContent } from './utils/fileParsing';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -409,7 +408,12 @@ const App: React.FC = () => {
       const aiResponse = await generateResponse(messages, userMessage, file);
       setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: 'Something went wrong. Please try again.', isError: true }]);
+      console.error("AI Error:", error);
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: 'I apologize, but I encountered a temporary issue generating a response. Please check your internet connection and try asking a different question.', 
+        isError: true 
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -635,8 +639,6 @@ const App: React.FC = () => {
                 </svg>
                 Community Library
               </button>
-
-              <ContactSection />
             </div>
             
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">

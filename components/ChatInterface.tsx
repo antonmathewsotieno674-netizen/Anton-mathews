@@ -122,7 +122,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
                 <div className="font-semibold text-xs text-slate-400 dark:text-slate-500 mb-1 uppercase tracking-wider select-none">MOA AI</div>
               )}
               
-              <div className="whitespace-pre-wrap">{msg.text}</div>
+              <div className="whitespace-pre-wrap">
+                {/* Visual Error Icon */}
+                {msg.isError && (
+                  <svg className="w-4 h-4 mr-2 inline-block -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                {msg.text}
+              </div>
 
               {/* Individual Copy Button */}
               {/* Positioned differently based on role to look good */}

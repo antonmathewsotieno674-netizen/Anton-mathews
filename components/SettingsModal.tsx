@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserState, LibraryItem } from '../types';
 import { Button } from './Button';
 import { SOCIAL_LINKS, APP_NAME, APP_VERSION, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from '../constants';
+import { ContactSection } from './ContactSection';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -389,13 +389,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </p>
               
               <form onSubmit={handleSendFeedback} className="space-y-4">
-                <textarea 
-                  className="w-full h-32 p-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none"
-                  placeholder="Type your message here..."
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  disabled={isSendingFeedback}
-                ></textarea>
+                <div className="relative">
+                  <textarea 
+                    className="w-full h-32 p-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none"
+                    placeholder="Describe your issue or idea..."
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    disabled={isSendingFeedback}
+                    maxLength={1000}
+                  ></textarea>
+                  <div className="absolute bottom-3 right-3 text-xs text-slate-400 pointer-events-none">
+                     {feedbackText.length}/1000
+                  </div>
+                </div>
                 
                 <div className="flex justify-end">
                   <Button 
@@ -404,7 +410,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     disabled={!feedbackText.trim()}
                     className="w-full sm:w-auto"
                   >
-                    {feedbackSent ? 'Message Sent!' : 'Send Message'}
+                    {feedbackSent ? 'Message Sent!' : 'Send Feedback'}
                   </Button>
                 </div>
               </form>
@@ -444,6 +450,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </details>
                  </div>
                </div>
+               
+               {/* Contact Support Section moved here */}
+               <ContactSection />
              </div>
           )}
 
