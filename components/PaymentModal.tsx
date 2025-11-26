@@ -54,7 +54,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
         setTimeout(() => {
             setProgress(90);
             setStatusMessage('Verifying transaction with Pochi la Biashara...');
-        }, 5500);
+        }, 4500);
 
     } else if (paymentMethod === 'paypal') {
         setStatusMessage('Redirecting to PayPal secure checkout...');
@@ -83,7 +83,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
       setProgress(100);
       setIsProcessing(false);
       setIsSuccess(true);
-    }, 7000); 
+    }, 5500); 
   };
 
   const handleComplete = () => {
@@ -115,9 +115,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onS
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Payment Successful!</h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Payment Verified!</h2>
           <p className="text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
-            Premium access is now active. You can enjoy unlimited questions and deep analysis on all your notes.
+            Premium access is now active. You have full access to MOA AI features.
           </p>
           <Button onClick={handleComplete} className="w-full py-3 text-lg shadow-lg shadow-brand-500/30 hover:scale-[1.02] active:scale-[0.98] transition-transform transform">
             Start Learning
