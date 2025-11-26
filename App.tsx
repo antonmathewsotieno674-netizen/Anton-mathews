@@ -292,7 +292,13 @@ const App: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={file ? (isListening ? "Listening..." : "Ask a question about your notes...") : "Upload a note first..."}
+                    placeholder={
+                      isListening 
+                        ? "Listening..." 
+                        : file 
+                          ? `Ask a question about "${file.name}"...`
+                          : "Upload a PDF, Doc, or Image to get started..."
+                    }
                     className={`flex-1 border border-slate-300 bg-white rounded-lg px-4 py-3 pr-20 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition disabled:bg-slate-50 disabled:text-slate-400 shadow-sm ${isListening ? 'ring-2 ring-red-400 border-red-400' : ''}`}
                     disabled={!file || isLoading}
                   />
