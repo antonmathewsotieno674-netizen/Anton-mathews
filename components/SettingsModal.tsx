@@ -316,11 +316,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  </div>
               </div>
 
+              {/* Upload History Section */}
+              {userState.uploadHistory && userState.uploadHistory.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Upload History</h3>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-h-48 overflow-y-auto">
+                    {userState.uploadHistory.map((record) => (
+                       <div key={record.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
+                          <div>
+                             <p className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">{record.name}</p>
+                             <p className="text-xs text-slate-400">{record.type.split('/')[1]?.toUpperCase() || 'FILE'}</p>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-xs text-slate-400">{new Date(record.date).toLocaleDateString()}</p>
+                          </div>
+                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Download History Section */}
               {userState.downloadHistory && userState.downloadHistory.length > 0 && (
                 <div>
                   <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Library Downloads</h3>
-                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-h-48 overflow-y-auto">
                     {userState.downloadHistory.map((record) => (
                        <div key={record.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
                           <div>

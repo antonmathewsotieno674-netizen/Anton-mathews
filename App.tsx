@@ -90,6 +90,7 @@ const App: React.FC = () => {
       premiumExpiryDate: undefined,
       paymentHistory: [],
       downloadHistory: [],
+      uploadHistory: [],
       questionUsage: []
     };
     
@@ -100,6 +101,7 @@ const App: React.FC = () => {
         // Ensure arrays exist if loading from old state
         paymentHistory: savedData.userState.paymentHistory || [],
         downloadHistory: savedData.userState.downloadHistory || [],
+        uploadHistory: savedData.userState.uploadHistory || [],
         questionUsage: savedData.userState.questionUsage || []
       };
     }
@@ -216,6 +218,7 @@ const App: React.FC = () => {
       user, 
       paymentHistory: prev.paymentHistory || [],
       downloadHistory: prev.downloadHistory || [],
+      uploadHistory: prev.uploadHistory || [],
       questionUsage: prev.questionUsage || [] 
     }));
   };
@@ -228,6 +231,7 @@ const App: React.FC = () => {
       premiumExpiryDate: undefined, 
       paymentHistory: [],
       downloadHistory: [],
+      uploadHistory: [],
       questionUsage: [] 
     });
     setMessages([]);
@@ -350,6 +354,22 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, { role: 'model', text: `I've analyzed your document "${selectedFile.name}". Ask me anything about it!` }]);
         setShowSharePrompt(true); // Prompt to share after success
       }
+
+      // Add to Upload History
+      setUserState(prev => ({
+        ...prev,
+        uploadHistory: [
+          {
+            id: `up_${Date.now()}`,
+            name: selectedFile.name,
+            type: selectedFile.type || (isImage ? 'image/unknown' : 'application/octet-stream'),
+            size: selectedFile.size,
+            date: Date.now()
+          },
+          ...(prev.uploadHistory || [])
+        ]
+      }));
+
     } catch (error: any) {
       console.error("File upload error:", error);
       let errorText = `Sorry, I couldn't read the file "${selectedFile.name}". It might be corrupted or in an unsupported format.`;

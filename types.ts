@@ -59,6 +59,14 @@ export interface DownloadRecord {
   date: number;
 }
 
+export interface UploadRecord {
+  id: string;
+  name: string;
+  type: string;
+  size?: number;
+  date: number;
+}
+
 export interface UserState {
   user: User | null;
   isPremium: boolean;
@@ -66,6 +74,7 @@ export interface UserState {
   premiumExpiryDate?: number; // Timestamp in milliseconds
   paymentHistory: PaymentRecord[];
   downloadHistory: DownloadRecord[];
+  uploadHistory: UploadRecord[];
   questionUsage: number[]; // Array of timestamps for rate limiting
 }
 
