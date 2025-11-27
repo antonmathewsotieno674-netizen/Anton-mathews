@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActionItem } from '../types';
 import { Button } from './Button';
 
@@ -11,6 +11,8 @@ interface TaskManagerModalProps {
 }
 
 export const TaskManagerModal: React.FC<TaskManagerModalProps> = ({ isOpen, onClose, tasks, isLoading }) => {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handleAddToTodoist = (content: string) => {
@@ -25,10 +27,10 @@ export const TaskManagerModal: React.FC<TaskManagerModalProps> = ({ isOpen, onCl
     window.open(url, '_blank');
   };
 
-  const handleCopy = (content: string) => {
+  const handleCopy = (id: string, content: string) => {
     navigator.clipboard.writeText(content);
-    // Could add a toast here
-    alert('Task copied to clipboard!');
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
@@ -77,32 +79,45 @@ export const TaskManagerModal: React.FC<TaskManagerModalProps> = ({ isOpen, onCl
                      <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">{task.content}</p>
                   </div>
                   
-                  <div className="flex gap-2 pl-8">
+                  <div className="flex flex-wrap gap-2 pl-8">
                      <button 
                        onClick={() => handleAddToTodoist(task.content)}
-                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                       title="Add to Todoist"
+                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-800"
+                       title="Create task in Todoist"
                      >
                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c6.627 0 12 5.373 12 12s-5.373 12-12 12S0 17.373 0 12 5.373 0 12 0zm0 4a8 8 0 100 16 8 8 0 000-16z"/></svg>
-                       Todoist
+                       Add to Todoist
                      </button>
 
                      <button 
                        onClick={() => handleAddToCalendar(task.content)}
-                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                       title="Add to Google Calendar"
+                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+                       title="Create event in Google Calendar"
                      >
                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                       Calendar
+                       Add to Google Calendar
                      </button>
 
                      <button 
-                       onClick={() => handleCopy(task.content)}
-                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors ml-auto"
-                       title="Copy for Asana/Other"
+                       onClick={() => handleCopy(task.id, task.content)}
+                       className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ml-auto border ${
+                         copiedId === task.id 
+                           ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
+                           : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 border-transparent'
+                       }`}
+                       title="Copy task text for Asana or other tools"
                      >
-                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                       Copy
+                       {copiedId === task.id ? (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            Copied
+                          </>
+                       ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                            Copy Text
+                          </>
+                       )}
                      </button>
                   </div>
                 </div>
