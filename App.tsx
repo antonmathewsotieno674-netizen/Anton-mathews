@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
 import { generateResponse, performOCR, generateWallpaper, extractTasks } from './services/geminiService';
@@ -47,6 +47,9 @@ const App: React.FC = () => {
   // Model Mode State
   const [modelMode, setModelMode] = useState<ModelMode>('standard');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | undefined>(undefined);
+
+  // Camera Input Ref
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -669,7 +672,7 @@ const App: React.FC = () => {
               <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">My Documents</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Upload from your phone, cloud, or drive.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+              <label className={`flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
                   {uploadSuccess ? (
                     <div className="animate-in zoom-in duration-300 flex flex-col items-center">
@@ -709,6 +712,33 @@ const App: React.FC = () => {
                   disabled={isProcessingFile}
                 />
               </label>
+
+              {/* Take Photo Button */}
+              <button 
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 mb-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm group"
+                title="Take a picture of your notes"
+                disabled={isProcessingFile}
+              >
+                 <div className="p-1.5 bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 rounded-lg group-hover:scale-110 transition-transform">
+                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                   </svg>
+                 </div>
+                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Take Photo</span>
+              </button>
+              
+              {/* Hidden Camera Input */}
+              <input 
+                 ref={cameraInputRef}
+                 type="file" 
+                 accept="image/*" 
+                 capture="environment"
+                 className="hidden" 
+                 onChange={handleFileUpload} 
+                 disabled={isProcessingFile}
+              />
 
               {showSharePrompt && file && (
                 <div className="mb-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 animate-in slide-in-from-left-2">
