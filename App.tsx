@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
@@ -11,6 +9,7 @@ import { ChatInterface } from './components/ChatInterface';
 import { AuthScreen } from './components/AuthScreen';
 import { InteractiveBackground } from './components/InteractiveBackground';
 import { TaskManagerModal } from './components/TaskManagerModal';
+import { LandingPage } from './components/LandingPage';
 import { parseFileContent } from './utils/fileParsing';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
@@ -30,6 +29,31 @@ const loadSavedState = () => {
 const App: React.FC = () => {
   // Initialize state from local storage or defaults
   const savedData = loadSavedState();
+  
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const savedTheme = localStorage.getItem('MOA_THEME');
+      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  // Apply Theme
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('MOA_THEME', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const [file, setFile] = useState<UploadedFile | null>(savedData?.file || null);
   const [messages, setMessages] = useState<Message[]>(savedData?.messages || []);
@@ -52,16 +76,6 @@ const App: React.FC = () => {
   // Camera Input Ref
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Theme State
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof localStorage !== 'undefined') {
-      const savedTheme = localStorage.getItem('MOA_THEME');
-      if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'light';
-  });
-
   // Settings Modal State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community'>('profile');
@@ -70,21 +84,6 @@ const App: React.FC = () => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [tasks, setTasks] = useState<ActionItem[]>([]);
   const [isExtractingTasks, setIsExtractingTasks] = useState(false);
-
-  // Apply Theme
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('MOA_THEME', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
   
   // User State including Authentication
   const [userState, setUserState] = useState<UserState>(() => {
@@ -112,6 +111,12 @@ const App: React.FC = () => {
     }
     
     return defaultState;
+  });
+
+  // Routing State
+  const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'app'>(() => {
+    // If user is already logged in, skip to app
+    return userState.user ? 'app' : 'landing';
   });
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -226,6 +231,7 @@ const App: React.FC = () => {
       uploadHistory: prev.uploadHistory || [],
       questionUsage: prev.questionUsage || [] 
     }));
+    setCurrentView('app');
   };
 
   const handleLogout = () => {
@@ -244,6 +250,7 @@ const App: React.FC = () => {
     setCustomBackground(undefined);
     setShowSharePrompt(false);
     localStorage.removeItem(STORAGE_KEY);
+    setCurrentView('landing');
   };
 
   const handleUpdateUserName = (newName: string) => {
@@ -577,10 +584,23 @@ const App: React.FC = () => {
   const daysRemaining = getDaysRemaining();
   const showRenewalWarning = userState.isPremium && daysRemaining <= 7 && daysRemaining > 0;
 
-  if (!userState.user) {
+  // View Routing Logic
+  if (currentView === 'landing') {
+    return (
+      <LandingPage 
+        onGetStarted={() => setCurrentView('auth')} 
+        onLogin={() => setCurrentView('auth')}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
+    );
+  }
+
+  if (currentView === 'auth') {
     return <AuthScreen onLogin={handleLogin} />;
   }
 
+  // Main App View
   return (
     <div className="flex flex-col h-screen relative bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <InteractiveBackground backgroundImage={customBackground} />
@@ -611,14 +631,14 @@ const App: React.FC = () => {
               title="View Profile and Settings"
             >
                <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs border border-brand-200 dark:border-brand-800 overflow-hidden relative">
-                 {userState.user.profilePicture ? (
+                 {userState.user?.profilePicture ? (
                    <img src={userState.user.profilePicture} alt={userState.user.name} className="w-full h-full object-cover" />
                  ) : (
-                   userState.user.name.charAt(0).toUpperCase()
+                   userState.user?.name.charAt(0).toUpperCase()
                  )}
                </div>
                <div className="flex flex-col items-start">
-                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-tight">{userState.user.name}</span>
+                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-tight">{userState.user?.name}</span>
                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Settings</span>
                </div>
             </button>
