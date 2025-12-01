@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from './Button';
 import { APP_NAME, APP_VERSION } from '../constants';
@@ -123,7 +124,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
                <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center text-white font-bold text-xs">M</div>
                <span className="font-bold text-slate-700 dark:text-slate-300">{APP_NAME}</span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">© {new Date().getFullYear()} MOA AI. Built with Google Gemini.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">© {new Date().getFullYear()} MOA AI. Built with MOA Company.</p>
          </div>
       </footer>
     </div>
