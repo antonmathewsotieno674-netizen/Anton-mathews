@@ -63,7 +63,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
          </h1>
          
          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mb-10 leading-relaxed animate-fade-in-up" style={{animationDelay: '0.2s'}}>
-            Upload notes, ask questions, and unlock instant insights powered by Gemini AI. 
+            Upload notes, ask questions, and unlock instant insights powered by MOA AI. 
             Join the community of students studying smarter, not harder.
          </p>
          
@@ -90,7 +90,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                </div>
                <h3 className="text-lg font-bold mb-2">Instant AI Answers</h3>
-               <p className="text-sm text-slate-600 dark:text-slate-400">Powered by Gemini 2.5 & 3.0 Pro. Get summaries, task lists, and deep explanations instantly.</p>
+               <p className="text-sm text-slate-600 dark:text-slate-400">Powered by MOA AI. Get summaries, task lists, and deep explanations instantly.</p>
             </div>
             <div className="p-6 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 transition-colors shadow-sm">
                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
