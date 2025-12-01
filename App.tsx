@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
@@ -10,6 +11,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { InteractiveBackground } from './components/InteractiveBackground';
 import { TaskManagerModal } from './components/TaskManagerModal';
 import { LandingPage } from './components/LandingPage';
+import { OnboardingTour } from './components/OnboardingTour';
 import { parseFileContent } from './utils/fileParsing';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
@@ -85,6 +87,9 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<ActionItem[]>([]);
   const [isExtractingTasks, setIsExtractingTasks] = useState(false);
   
+  // Tour State
+  const [showTour, setShowTour] = useState(false);
+
   // User State including Authentication
   const [userState, setUserState] = useState<UserState>(() => {
     const defaultState = { 
@@ -124,6 +129,22 @@ const App: React.FC = () => {
 
   // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Check for tour on app load
+  useEffect(() => {
+    if (currentView === 'app') {
+      const hasSeenTour = localStorage.getItem('HAS_SEEN_ONBOARDING');
+      if (!hasSeenTour) {
+        // Small delay to ensure layout is ready
+        setTimeout(() => setShowTour(true), 1000);
+      }
+    }
+  }, [currentView]);
+
+  const handleTourClose = () => {
+    setShowTour(false);
+    localStorage.setItem('HAS_SEEN_ONBOARDING', 'true');
+  };
 
   // Check for premium expiry on mount and state changes
   useEffect(() => {
@@ -615,6 +636,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             
             <button 
+              id="tasks-button"
               onClick={handleExtractTasks}
               className="hidden sm:flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 font-medium text-sm transition-colors"
               title="Generate tasks and export to Todoist/Calendar"
@@ -626,6 +648,7 @@ const App: React.FC = () => {
             </button>
 
             <button 
+              id="settings-button"
               onClick={() => openSettingsTo('profile')}
               className="hidden md:flex items-center gap-2 mr-2 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 p-1.5 rounded-lg transition-colors"
               title="View Profile and Settings"
@@ -693,7 +716,10 @@ const App: React.FC = () => {
               <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">My Documents</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Upload from your phone, cloud, or drive.</p>
               
-              <label className={`flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}>
+              <label 
+                id="upload-area"
+                className={`flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10' : isProcessingFile ? 'border-brand-400 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:border-brand-300 dark:hover:border-brand-500'} ${!file && !isProcessingFile && !uploadSuccess ? 'animate-pulse shadow-[0_0_15px_rgba(14,165,233,0.15)] border-brand-300 dark:border-brand-700' : ''} rounded-xl cursor-pointer transition-all group mb-4 shadow-sm relative overflow-hidden`}
+              >
                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4 w-full">
                   {uploadSuccess ? (
                     <div className="animate-in zoom-in duration-300 flex flex-col items-center">
@@ -814,10 +840,10 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col relative h-full overflow-hidden">
             <ChatInterface messages={messages} isLoading={isLoading} />
 
-            <div className="p-4 md:p-6 pb-6 border-t border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md relative z-10 transition-colors">
+            <div id="chat-input-area" className="p-4 md:p-6 pb-6 border-t border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md relative z-10 transition-colors">
               
               {/* Model Mode Selector */}
-              <div className="max-w-4xl mx-auto mb-2 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+              <div id="model-selector" className="max-w-4xl mx-auto mb-2 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                  <button 
                    onClick={() => setModelMode('standard')}
                    title="Best for general purpose queries and summaries"
@@ -931,6 +957,11 @@ const App: React.FC = () => {
         onClose={() => setShowTaskModal(false)}
         tasks={tasks}
         isLoading={isExtractingTasks}
+      />
+      
+      <OnboardingTour 
+        isOpen={showTour} 
+        onClose={handleTourClose} 
       />
     </div>
   );
