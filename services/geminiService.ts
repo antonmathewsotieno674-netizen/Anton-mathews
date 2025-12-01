@@ -18,7 +18,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
  * Prioritizes Imagen 4.0, falls back to Gemini 2.5 Flash Image.
  */
 export const generateWallpaper = async (): Promise<string> => {
-  const prompt = 'Abstract representation of artificial intelligence, intelligence and data flow, neural connections, glowing nodes in deep blue and cyan space, digital brain, futuristic data flow, high quality, 4k resolution, wallpaper style, subtle geometric patterns';
+  // Updated prompt for a fresher, high-tech look
+  const prompt = 'Futuristic abstract data landscape, flowing streams of glowing neural nodes, deep indigo and cybernetic blue gradients, subtle glass morphism effects, 8k resolution, ultra-detailed, cinematic lighting, sleek modern UI background, abstract intelligence';
 
   try {
     // Attempt with Imagen 4.0 model as requested

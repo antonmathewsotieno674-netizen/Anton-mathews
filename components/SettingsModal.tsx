@@ -275,7 +275,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         isLoading={isGeneratingBackground}
                         className="w-full text-xs py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
                       >
-                        {isGeneratingBackground ? 'Generating Art...' : 'Generate AI Wallpaper'}
+                        {isGeneratingBackground ? 'Generating Art...' : 'Generate New Wallpaper'}
                       </Button>
                       <p className="text-[10px] text-slate-400 mt-2 text-center">Uses Google GenAI to create a unique neural wallpaper.</p>
                    </div>
