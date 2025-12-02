@@ -145,13 +145,6 @@ export const generateSpeech = async (text: string): Promise<string> => {
 
   const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (base64Audio) {
-    return `data:audio/mp3;base64,${base64Audio}`; // Note: API returns PCM usually, but browser can handle simple container wrapping or raw if Context used. 
-    // For simplicity in <audio> tag, we might need actual WAV header or rely on browser decoder smarts for PCM-like blobs.
-    // The SDK example decodes PCM manually. For this app, to keep it simple, we assume the API might evolve or we send raw. 
-    // Actually, let's stick to the raw data and let the caller handle it or use a simple wav header wrapper if needed. 
-    // *Correction*: The prompt example uses AudioContext to decode. We will return base64 and let UI handle it, 
-    // but for <audio src="..."> it needs a container. 
-    // Let's assume for this "web app" we want to play it. 
     return base64Audio;
   }
   throw new Error("Failed to generate speech.");
@@ -242,8 +235,16 @@ export const generateResponse = async (
         break;
     }
 
-    // Construct Contents
-    const contents: Content[] = history.map(msg => {
+    // --- CONTEXT MANAGEMENT FIX ---
+    // 1. Truncate History: Keep only the last 30 messages to avoid hitting 1M token limits.
+    // 1 million tokens is a lot, but infinite history + large files will eventually break it.
+    const MAX_HISTORY_LENGTH = 30;
+    const effectiveHistory = history.length > MAX_HISTORY_LENGTH 
+      ? history.slice(history.length - MAX_HISTORY_LENGTH) 
+      : history;
+
+    // 2. Construct Content Objects
+    const contents: Content[] = effectiveHistory.map(msg => {
         const parts: Part[] = [];
         if (msg.attachment) {
             const matches = msg.attachment.match(/^data:(.+);base64,(.+)$/);
@@ -255,11 +256,22 @@ export const generateResponse = async (
         return { role: msg.role, parts: parts };
     });
 
-    // Add File Context if exists
+    // 3. Inject File Context into the Start of the Session
+    // Even if history is truncated, the file context must be preserved for the AI to answer correctly.
     if (file) {
       const contextParts: Part[] = [];
       if (file.category === 'text') {
-        contextParts.push({ text: `\n\n--- FILE CONTEXT (${file.name}) ---\n${file.content}\n--- END CONTEXT ---\n` });
+        // Safety: Truncate extremely large text files to ~2 million characters (approx 500k tokens)
+        // to leave room for history and output within the 1M token limit.
+        const SAFE_TEXT_LIMIT = 2000000;
+        let fileContent = file.content;
+        
+        if (fileContent.length > SAFE_TEXT_LIMIT) {
+            console.warn("File content too large, truncating.");
+            fileContent = fileContent.substring(0, SAFE_TEXT_LIMIT) + "\n\n[WARNING: File content truncated due to size limits.]";
+        }
+
+        contextParts.push({ text: `\n\n--- FILE CONTEXT (${file.name}) ---\n${fileContent}\n--- END CONTEXT ---\n` });
       } else if (!file.originalImage) {
         // Raw media context (Video/Audio/Image) that hasn't been transcribed to text
         const base64Data = file.content.split(',')[1];
@@ -267,6 +279,7 @@ export const generateResponse = async (
         contextParts.push({ text: "Reference the uploaded file above." });
       }
       
+      // Inject context at the very beginning
       if (contents.length > 0 && contents[0].role === 'user') {
          contents[0].parts = [...contextParts, ...contents[0].parts];
       } else {
@@ -293,8 +306,14 @@ export const generateResponse = async (
 
     return { text: finalText, groundingLinks };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
+    
+    // Explicit handling for Token Limit Error
+    if (error.message?.includes('token count exceeds') || error.message?.includes('400')) {
+        return { text: "⚠️ The conversation context or uploaded file is too large for the AI to process (over 1 million tokens). Please clear the chat history or try uploading a smaller file." };
+    }
+    
     throw error;
   }
 };
