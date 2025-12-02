@@ -10,6 +10,7 @@ export interface GroundingLink {
 export interface Message {
   role: 'user' | 'model';
   text: string;
+  attachment?: string; // Base64 data URL of the image attachment
   isError?: boolean;
   groundingLinks?: GroundingLink[];
   modelMode?: ModelMode; // Track which mode generated this

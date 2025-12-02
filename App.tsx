@@ -67,6 +67,9 @@ const App: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [showSharePrompt, setShowSharePrompt] = useState(false);
   
+  // Chat attachment state
+  const [chatAttachment, setChatAttachment] = useState<string | undefined>(undefined);
+  
   // Custom Background State
   const [customBackground, setCustomBackground] = useState<string | undefined>(savedData?.customBackground);
   const [isGeneratingBg, setIsGeneratingBg] = useState(false);
@@ -75,8 +78,9 @@ const App: React.FC = () => {
   const [modelMode, setModelMode] = useState<ModelMode>('standard');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | undefined>(undefined);
 
-  // Camera Input Ref
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Camera Input Refs
+  const cameraInputRef = useRef<HTMLInputElement>(null); // Sidebar input
+  const chatCameraInputRef = useRef<HTMLInputElement>(null); // Chat input
 
   // Settings Modal State
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -95,7 +99,7 @@ const App: React.FC = () => {
     const defaultState = { 
       user: null, 
       isPremium: false, 
-      hasPaid: false,
+      hasPaid: false, 
       premiumExpiryDate: undefined,
       paymentHistory: [],
       downloadHistory: [],
@@ -433,6 +437,27 @@ const App: React.FC = () => {
     }
   };
 
+  const handleChatAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image is too large. Please select an image under 5MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setChatAttachment(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input
+    if (e.target) e.target.value = '';
+  };
+
+  const clearChatAttachment = () => {
+    setChatAttachment(undefined);
+  };
+
   const handlePublishToLibrary = () => {
     if (!file || !userState.user) return;
     setIsPublishing(true);
@@ -509,7 +534,7 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !chatAttachment) || isLoading) return;
 
     if (!userState.isPremium) {
       const now = Date.now();
@@ -528,12 +553,21 @@ const App: React.FC = () => {
     }
 
     const userMessage = input.trim();
+    const currentAttachment = chatAttachment;
+    
+    // Clear input and attachment immediately
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setChatAttachment(undefined);
+
+    // Add message with attachment to state
+    setMessages(prev => [...prev, { role: 'user', text: userMessage, attachment: currentAttachment }]);
     setIsLoading(true);
 
     try {
-      const { text, groundingLinks } = await generateResponse(messages, userMessage, file, modelMode, userLocation);
+      // Pass the *entire* message history including the new one we just added (we need to construct a temp array because state update is async)
+      const currentHistory = [...messages, { role: 'user', text: userMessage, attachment: currentAttachment } as Message];
+      
+      const { text, groundingLinks } = await generateResponse(currentHistory, userMessage, file, modelMode, userLocation);
       setMessages(prev => [...prev, { 
         role: 'model', 
         text: text,
@@ -778,7 +812,7 @@ const App: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Take Photo
+                Take Photo of Document
               </button>
               <input 
                 ref={cameraInputRef}
@@ -876,14 +910,51 @@ const App: React.FC = () => {
                  </button>
               </div>
 
+              {/* Chat Attachment Preview */}
+              {chatAttachment && (
+                <div className="max-w-4xl mx-auto mb-2 flex items-center animate-in fade-in slide-in-from-bottom-2">
+                  <div className="relative group">
+                    <img src={chatAttachment} alt="Attachment" className="h-16 w-16 object-cover rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm" />
+                    <button 
+                      onClick={clearChatAttachment}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 shadow-sm transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">Image attached</span>
+                </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto flex gap-2">
                 <div className="relative flex-1">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={file ? `Ask about "${file.name}"...` : "Upload a note first..."}
-                    className="w-full pl-4 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-100"
+                    placeholder={file ? `Ask about "${file.name}"...` : "Upload a note or use camera..."}
+                    className="w-full pl-10 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-100"
+                  />
+                  
+                  {/* Camera Attachment Button */}
+                  <button
+                    type="button"
+                    onClick={() => chatCameraInputRef.current?.click()}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                    title="Attach image from camera or gallery"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                  <input 
+                    ref={chatCameraInputRef}
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleChatAttachment}
                   />
                   
                   {hasSupport && (
@@ -906,7 +977,7 @@ const App: React.FC = () => {
 
                 <Button 
                   type="submit" 
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && !chatAttachment) || isLoading}
                   className="rounded-2xl px-6 bg-brand-600 hover:bg-brand-700 shadow-brand-500/25 shadow-lg"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

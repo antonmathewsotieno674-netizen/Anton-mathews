@@ -160,33 +160,73 @@ export const generateResponse = async (
         modelName = GEMINI_MODEL_STANDARD;
     }
 
-    // Construct content
-    let parts: Part[] = [{ text: currentQuery }];
-    let contents: Content[] = [];
+    // Check if the current message (the last one in history usually, or we can assume it's currentQuery) 
+    // actually, history passed here usually includes the current user message at the end.
+    // But in App.tsx we append to state before calling this. 
+    // Let's assume 'history' contains the full conversation including the latest user message.
+    
+    // However, to be safe and structured:
+    // We will rebuild the contents from the history array.
+    
+    const contents: Content[] = history.map(msg => {
+        const parts: Part[] = [];
+        
+        // If there's an attachment, add it as inlineData
+        if (msg.attachment) {
+            // Extract mimeType from data URL: data:image/jpeg;base64,...
+            const matches = msg.attachment.match(/^data:(.+);base64,(.+)$/);
+            if (matches) {
+                parts.push({
+                    inlineData: {
+                        mimeType: matches[1],
+                        data: matches[2]
+                    }
+                });
+            }
+        }
+        
+        // Add the text part
+        parts.push({ text: msg.text });
 
-    const previousHistory: Content[] = history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.text }]
-    }));
+        return {
+            role: msg.role,
+            parts: parts
+        };
+    });
 
-    contents = [...previousHistory];
-
+    // If we have a main uploaded file (the context), we need to insert it.
+    // Typically this is inserted at the beginning of the conversation.
+    // If the file is an image, we insert it as inlineData.
+    // If it's text, we insert it as text.
+    
     if (file) {
+      const contextParts: Part[] = [];
+      
       if (file.category === 'image' && !file.originalImage) {
+        // If it's a raw image upload without OCR text replacement
         const base64Data = file.content.split(',')[1]; 
-        parts.unshift({
+        contextParts.push({
           inlineData: {
             mimeType: file.type,
             data: base64Data
           }
         });
-        parts.unshift({ text: "Here is the image file I uploaded for reference: " });
+        contextParts.push({ text: "Here is the image file I uploaded for reference: " });
       } else {
-        parts.unshift({ text: `\n\n--- BEGIN UPLOADED NOTE CONTENT (${file.name}) ---\n${file.content}\n--- END NOTE CONTENT ---\n\nBased on the note above: ` });
+        // Text based context (extracted OCR or document text)
+        contextParts.push({ text: `\n\n--- BEGIN UPLOADED NOTE CONTENT (${file.name}) ---\n${file.content}\n--- END NOTE CONTENT ---\n\nBased on the note above: ` });
       }
-    }
 
-    contents.push({ role: 'user', parts: parts });
+      // Insert context at the start of the first user message, or create a new system/user message at start
+      if (contents.length > 0 && contents[0].role === 'user') {
+         contents[0].parts = [...contextParts, ...contents[0].parts];
+      } else {
+         contents.unshift({ role: 'user', parts: contextParts });
+      }
+    } else {
+       // If history was empty but we have a current query (edge case handling if history didn't include it)
+       // This function expects 'history' to be up to date.
+    }
 
     const response = await ai.models.generateContent({
       model: modelName,

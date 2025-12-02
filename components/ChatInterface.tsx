@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Message, GroundingLink } from '../types';
 
@@ -129,6 +130,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
                 </div>
               )}
               
+              {/* Display Attachment if present */}
+              {msg.attachment && (
+                <div className="mb-3 rounded-lg overflow-hidden border border-white/20 shadow-sm max-w-[200px]">
+                  <img src={msg.attachment} alt="Attachment" className="w-full h-auto object-cover block" />
+                </div>
+              )}
+
               <div className="whitespace-pre-wrap">
                 {msg.isError && (
                   <svg className="w-4 h-4 mr-2 inline-block -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
