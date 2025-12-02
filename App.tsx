@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig } from './types';
+import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
-import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, generateSpeech, analyzeMedia } from './services/geminiService';
+import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, generateSpeech, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -67,27 +67,32 @@ const App: React.FC = () => {
   const [showTour, setShowTour] = useState(false);
 
   const [userState, setUserState] = useState<UserState>(() => {
-    const defaultState = { user: null, isPremium: false, hasPaid: false, paymentHistory: [], downloadHistory: [], uploadHistory: [], questionUsage: [] };
+    const defaultState = { user: null, isPremium: false, hasPaid: false, paymentHistory: [], downloadHistory: [], uploadHistory: [], questionUsage: [], longTermMemory: '' };
     return savedData?.userState ? { ...defaultState, ...savedData.userState } : defaultState;
   });
 
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'app'>(userState.user ? 'app' : 'landing');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
+  // Background Memory Consolidation
   useEffect(() => {
-    if (currentView === 'app' && !localStorage.getItem('HAS_SEEN_ONBOARDING')) {
-      setTimeout(() => setShowTour(true), 1000);
+    // Only run if we have a decent number of messages and the user is logged in
+    if (messages.length > 0 && messages.length % 5 === 0 && userState.user) {
+       console.log("Triggering memory consolidation...");
+       consolidateMemory(messages, userState.longTermMemory).then(newMemory => {
+          if (newMemory) {
+             console.log("Memory updated:", newMemory);
+             setUserState(prev => ({ ...prev, longTermMemory: newMemory }));
+          }
+       });
     }
-  }, [currentView]);
+  }, [messages.length, userState.user]); // Intentionally checking length to trigger periodically
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ userState, file, messages, customBackground }));
-    } catch { 
-      // Handle quota exceeded
-    }
+    } catch { }
   }, [userState, file, messages, customBackground]);
 
   useEffect(() => {
@@ -154,9 +159,7 @@ const App: React.FC = () => {
 
   const handleTextToSpeech = async (text: string) => {
     try {
-      // Create a temporary audio element to play
       const base64Audio = await generateSpeech(text);
-      // Construct a data URI - assuming base64Audio is raw base64 data
       const audio = new Audio("data:audio/mp3;base64," + base64Audio); 
       audio.play();
     } catch (e) {
@@ -164,6 +167,7 @@ const App: React.FC = () => {
     }
   };
 
+  // Re-use file upload logic
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -206,6 +210,12 @@ const App: React.FC = () => {
         setFile({ name: selectedFile.name, type: selectedFile.type, content: text, category: 'text' });
         setMessages([{ role: 'model', text: `Document loaded. Ask me anything about ${selectedFile.name}!` }]);
       }
+      
+      setUserState(prev => ({
+        ...prev,
+        uploadHistory: [{ id: `up_${Date.now()}`, name: selectedFile.name, type: selectedFile.type || 'application/octet-stream', size: selectedFile.size, date: Date.now() }, ...(prev.uploadHistory || [])]
+      }));
+
       setShowSharePrompt(true);
     } catch (error: any) {
       setMessages([{ role: 'model', text: `Error: ${error.message}`, isError: true }]);
@@ -221,7 +231,6 @@ const App: React.FC = () => {
     if ((!input.trim() && !chatAttachment) || isLoading) return;
 
     if (!userState.isPremium && userState.questionUsage.length >= FREE_QUESTIONS_LIMIT) {
-       // Ideally check time window here
        setShowPaymentModal(true); return;
     }
 
@@ -236,7 +245,7 @@ const App: React.FC = () => {
 
     try {
       const currentHistory = [...messages, { role: 'user', text: userMessage, attachment: currentAttachment, attachmentType: currentType } as Message];
-      const { text, groundingLinks } = await generateResponse(currentHistory, userMessage, file, modelMode, userLocation);
+      const { text, groundingLinks } = await generateResponse(currentHistory, userMessage, file, modelMode, userLocation, userState.longTermMemory);
       setMessages(prev => [...prev, { role: 'model', text, groundingLinks, modelMode }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: "Sorry, I couldn't process that.", isError: true }]);
@@ -256,9 +265,24 @@ const App: React.FC = () => {
     }
   };
 
-  // ... (Other handlers like payment, export tasks, etc. remain same, omitting for brevity in this delta update if unchanged logic) ...
-  // Re-implementing simplified handlers for completeness:
   const handleExtractTasks = async () => { setShowTaskModal(true); setIsExtractingTasks(true); try { setTasks(await extractTasks(file, messages)); } finally { setIsExtractingTasks(false); }};
+  
+  // New: Advanced Scaffolding Trigger
+  const handleCreatePlan = async () => {
+    if (!input.trim()) { alert("Please type a goal in the chat box first (e.g. 'Plan a startup')"); return; }
+    setIsLoading(true);
+    try {
+       const plan = await generateProjectPlan(input, file?.content);
+       setMessages(prev => [...prev, { role: 'model', text: `🏗️ **${plan.title}**\n\n${plan.steps.map(s => `- ${s.step}: ${s.details}`).join('\n')}` }]);
+       setInput('');
+    } catch(e) {
+       console.error(e);
+       alert("Failed to create plan.");
+    } finally {
+       setIsLoading(false);
+    }
+  };
+
   const handleGenerateBackground = async () => { setIsGeneratingBg(true); try { setCustomBackground(await generateWallpaper()); } catch(e){console.error(e)} finally { setIsGeneratingBg(false); }};
 
   if (currentView === 'landing') return <LandingPage onGetStarted={() => setCurrentView('auth')} onLogin={() => setCurrentView('auth')} theme={theme} toggleTheme={toggleTheme} />;
@@ -295,12 +319,33 @@ const App: React.FC = () => {
           {/* Sidebar */}
           <div className="w-full md:w-80 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-r border-white/50 dark:border-slate-700 p-6 flex flex-col z-10 overflow-y-auto">
              <h2 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">My Content</h2>
-             <label id="upload-area" className="flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer hover:border-brand-400 bg-white/50 dark:bg-slate-800/50 mb-4 transition-colors">
-                {isProcessingFile ? <div className="text-center"><div className="w-full h-1 bg-brand-200 rounded overflow-hidden mb-2"><div className="h-full bg-brand-600 transition-all" style={{width: `${uploadProgress}%`}}></div></div><span className="text-xs">{processingStatus}</span></div> : 
-                <div className="text-center p-4">
-                   <p className="text-sm font-medium">Upload File</p>
-                   <p className="text-[10px] text-slate-500">PDF, Word, Images, Video, Audio</p>
-                </div>}
+             <label id="upload-area" className={`flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed ${uploadSuccess ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 bg-white/50 dark:bg-slate-800/50'} rounded-xl cursor-pointer mb-4 transition-all relative overflow-hidden`}>
+                {uploadSuccess ? (
+                    <div className="flex flex-col items-center animate-in zoom-in">
+                        <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 mb-2">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <p className="text-xs font-bold text-green-700 dark:text-green-400">Upload Complete</p>
+                    </div>
+                ) : isProcessingFile ? (
+                    <div className="w-full px-6 flex flex-col items-center">
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+                            <div className="h-full bg-brand-600 transition-all duration-300 ease-out" style={{width: `${uploadProgress}%`}}></div>
+                        </div>
+                        <div className="flex justify-between w-full text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                            <span>{processingStatus || 'Processing...'}</span>
+                            <span>{Math.round(uploadProgress)}%</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center p-4">
+                       <div className="mb-2 text-slate-400 dark:text-slate-500">
+                         <svg className="w-8 h-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                       </div>
+                       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Click to Upload</p>
+                       <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">PDF, Word, Images, Video, Audio</p>
+                    </div>
+                )}
                 <input type="file" className="hidden" onChange={handleFileUpload} accept="*/*" disabled={isProcessingFile} />
              </label>
              <button onClick={() => cameraInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 mb-2 py-2.5 bg-slate-100 dark:bg-slate-700 rounded-xl text-sm font-medium">Take Photo</button>
@@ -334,12 +379,19 @@ const App: React.FC = () => {
 
               <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto flex gap-2">
                 <div className="relative flex-1">
-                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question..." className="w-full pl-10 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all text-slate-700 dark:text-white" />
+                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question or type a goal..." className="w-full pl-10 pr-12 py-3.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-2xl shadow-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all text-slate-700 dark:text-white" />
                   <button type="button" onClick={() => chatCameraInputRef.current?.click()} className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-brand-600"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
                   <input ref={chatCameraInputRef} type="file" accept="image/*,video/*,audio/*" capture="environment" className="hidden" onChange={handleChatAttachment} />
                   {hasSupport && <button type="button" onClick={toggleListening} className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'text-slate-400 hover:text-brand-600'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></button>}
                 </div>
-                <Button type="submit" disabled={isLoading} className="rounded-2xl px-6"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></Button>
+                {/* Advanced Mode Toggle in input area */}
+                {modelMode === 'thinking' ? (
+                   <Button type="button" onClick={handleCreatePlan} title="Create Project Plan" className="rounded-2xl px-3 bg-purple-600 hover:bg-purple-700">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                   </Button>
+                ) : (
+                   <Button type="submit" disabled={isLoading} className="rounded-2xl px-6"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></Button>
+                )}
               </form>
             </div>
           </div>

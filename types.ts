@@ -83,12 +83,26 @@ export interface UserState {
   downloadHistory: DownloadRecord[];
   uploadHistory: UploadRecord[];
   questionUsage: number[];
+  longTermMemory?: string; // Persisted knowledge base about user/projects
 }
 
 export interface ActionItem {
   id: string;
   content: string;
   isCompleted: boolean;
+}
+
+// Advanced Scaffolding
+export interface ProjectStep {
+  step: string;
+  details: string;
+  status: 'pending' | 'in-progress' | 'done';
+}
+
+export interface ProjectPlan {
+  id: string;
+  title: string;
+  steps: ProjectStep[];
 }
 
 export interface BeforeInstallPromptEvent extends Event {
