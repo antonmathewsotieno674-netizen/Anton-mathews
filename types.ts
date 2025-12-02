@@ -1,27 +1,33 @@
 
-
-export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps';
+export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps' | 'search';
 
 export interface GroundingLink {
   title: string;
   uri: string;
+  source?: 'maps' | 'search';
 }
 
 export interface Message {
   role: 'user' | 'model';
   text: string;
-  attachment?: string; // Base64 data URL of the image attachment
+  attachment?: string; // Base64 data URL
+  attachmentType?: 'image' | 'video' | 'audio';
   isError?: boolean;
   groundingLinks?: GroundingLink[];
-  modelMode?: ModelMode; // Track which mode generated this
+  modelMode?: ModelMode;
+  generatedMedia?: {
+    type: 'image' | 'video' | 'audio';
+    url: string; // Data URL or Blob URL
+    mimeType: string;
+  };
 }
 
 export interface UploadedFile {
   name: string;
   type: string;
-  content: string; // Base64 for images, text string for text files
-  category: 'image' | 'text';
-  originalImage?: string; // Keep original base64 for display if OCR was performed
+  content: string; // Base64 or Text
+  category: 'image' | 'text' | 'video' | 'audio';
+  originalImage?: string; 
 }
 
 export interface LibraryItem {
@@ -30,11 +36,11 @@ export interface LibraryItem {
   author: string;
   description: string;
   category: string;
-  fileContent: string; // The actual content to be loaded
-  fileType: string; // mime type
+  fileContent: string;
+  fileType: string;
   date: string;
   downloads: number;
-  originalImage?: string; // Optional: Keep original image for library items
+  originalImage?: string;
 }
 
 export interface User {
@@ -43,7 +49,7 @@ export interface User {
   email?: string;
   phone?: string;
   authMethod: 'email' | 'phone' | 'google';
-  profilePicture?: string; // Base64 string of the user's profile picture
+  profilePicture?: string;
 }
 
 export interface PaymentRecord {
@@ -72,11 +78,11 @@ export interface UserState {
   user: User | null;
   isPremium: boolean;
   hasPaid: boolean;
-  premiumExpiryDate?: number; // Timestamp in milliseconds
+  premiumExpiryDate?: number;
   paymentHistory: PaymentRecord[];
   downloadHistory: DownloadRecord[];
   uploadHistory: UploadRecord[];
-  questionUsage: number[]; // Array of timestamps for rate limiting
+  questionUsage: number[];
 }
 
 export interface ActionItem {
@@ -85,8 +91,15 @@ export interface ActionItem {
   isCompleted: boolean;
 }
 
-// PWA Install Prompt Event
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+export interface MediaGenerationConfig {
+  type: 'image' | 'video';
+  prompt: string;
+  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  imageSize?: '1K' | '2K' | '4K'; // Only for image
+  referenceImage?: string; // Base64 for Veo image-to-video or editing
 }
