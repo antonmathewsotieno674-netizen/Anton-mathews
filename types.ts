@@ -1,4 +1,5 @@
 
+
 export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps' | 'search';
 
 export interface GroundingLink {
@@ -113,7 +114,18 @@ export interface BeforeInstallPromptEvent extends Event {
 export interface MediaGenerationConfig {
   type: 'image' | 'video';
   prompt: string;
-  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2' | '21:9';
   imageSize?: '1K' | '2K' | '4K'; // Only for image
   referenceImage?: string; // Base64 for Veo image-to-video or editing
+}
+
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
 }

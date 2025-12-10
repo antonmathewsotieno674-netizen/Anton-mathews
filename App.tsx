@@ -77,17 +77,12 @@ const App: React.FC = () => {
 
   // Background Memory Consolidation
   useEffect(() => {
-    // Only run if we have a decent number of messages and the user is logged in
     if (messages.length > 0 && messages.length % 5 === 0 && userState.user) {
-       console.log("Triggering memory consolidation...");
        consolidateMemory(messages, userState.longTermMemory).then(newMemory => {
-          if (newMemory) {
-             console.log("Memory updated:", newMemory);
-             setUserState(prev => ({ ...prev, longTermMemory: newMemory }));
-          }
+          if (newMemory) setUserState(prev => ({ ...prev, longTermMemory: newMemory }));
        });
     }
-  }, [messages.length, userState.user]); // Intentionally checking length to trigger periodically
+  }, [messages.length, userState.user]); 
 
   useEffect(() => {
     try {
@@ -131,6 +126,20 @@ const App: React.FC = () => {
   };
 
   const handleGenerateMedia = async (config: MediaGenerationConfig) => {
+    // API Key Selection Check
+    if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+            try {
+                await window.aistudio.openSelectKey();
+                // We proceed, assuming success. If they cancelled, the next call will likely fail, which is handled.
+            } catch (e) {
+                console.error("Key selection failed", e);
+                return;
+            }
+        }
+    }
+
     setIsGeneratingMedia(true);
     try {
       let mediaUrl;
@@ -151,7 +160,7 @@ const App: React.FC = () => {
       }]);
       setShowMediaModal(false);
     } catch (error) {
-      alert("Media generation failed. Please try again.");
+      alert("Media generation failed. Ensure you have a valid API key selected.");
     } finally {
       setIsGeneratingMedia(false);
     }
@@ -167,7 +176,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Re-use file upload logic
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
