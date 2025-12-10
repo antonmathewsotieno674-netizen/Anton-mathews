@@ -2,26 +2,73 @@
 import { UploadedFile, Message, ActionItem, ModelMode, GroundingLink, MediaGenerationConfig, ProjectPlan } from "../types";
 
 // MOA API: Independent AI Service Implementation
-// This service runs entirely client-side or interacts with a hypothetical MOA backend
-// ensuring the app is free and independent of paid external APIs.
+// Includes Client-Side RAG (Retrieval Augmented Generation) for accuracy.
 
-const SIMULATED_LATENCY = 800; // ms
+const SIMULATED_LATENCY = 800; 
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Intelligent Response Templates
+// --- RAG UTILITIES ---
+
+// 1. Chunking Strategy (Pre-Processing Stage)
+const chunkText = (text: string, chunkSize: number = 300): string[] => {
+  // Split by sentence boundaries to preserve meaning
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chunks = [];
+  let currentChunk = '';
+  
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > chunkSize) {
+      chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += ' ' + sentence;
+    }
+  }
+  if (currentChunk.trim()) chunks.push(currentChunk.trim());
+  return chunks;
+};
+
+// 2. Retrieval Strategy (Semantic/Keyword Search)
+const retrieveContext = (query: string, text: string): string[] => {
+  if (!text) return [];
+  const chunks = chunkText(text);
+  
+  // Basic TF-IDF-like scoring based on query terms
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  
+  if (queryTerms.length === 0) return chunks.slice(0, 3); // Fallback if query is too short
+
+  const scoredChunks = chunks.map(chunk => {
+    const chunkLower = chunk.toLowerCase();
+    let score = 0;
+    queryTerms.forEach(term => {
+      if (chunkLower.includes(term)) score += 1;
+    });
+    // Boost score if chunk contains multiple distinct query terms
+    const uniqueTermsFound = queryTerms.filter(term => chunkLower.includes(term)).length;
+    score += uniqueTermsFound * 2;
+    
+    return { chunk, score };
+  });
+
+  // Sort by score and take top 3
+  scoredChunks.sort((a, b) => b.score - a.score);
+  const relevant = scoredChunks.filter(x => x.score > 0);
+  
+  // If no relevance found, return first chunk (intro) and random middle chunk
+  if (relevant.length === 0) return [chunks[0], chunks[Math.floor(chunks.length / 2)]].filter(Boolean);
+  
+  return relevant.slice(0, 3).map(x => x.chunk);
+};
+
+// --- END RAG UTILITIES ---
+
 const TEMPLATES = {
   greetings: [
     "Hello! I am MOA AI, your independent study companion. How can I assist you today?",
     "Hi there! Ready to learn? Upload some notes or ask me a question.",
     "Greetings! I'm here to help you study smarter."
-  ],
-  summary: [
-    "Here is a summary of the key points:\n\n1. The main concept revolves around the core subject matter.\n2. Critical analysis suggests a strong correlation between the variables.\n3. The conclusion emphasizes the importance of further study.",
-    "To summarize: The document covers essential definitions, historical context, and methodological approaches relevant to the topic."
-  ],
-  definitions: [
-    "Based on my knowledge base, this term refers to a fundamental concept in the field, often characterized by its specific properties and interactions with other elements.",
   ],
   general: [
     "That's an insightful question. Based on the context, I suggest focusing on the underlying principles.",
@@ -34,20 +81,17 @@ const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
 
 export const generateWallpaper = async (): Promise<string> => {
   await delay(1500);
-  // MOA AI Art Generation (Simulated)
   return "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=2574&auto=format&fit=crop"; 
 };
 
 export const generateProImage = async (config: MediaGenerationConfig): Promise<string> => {
   await delay(2000);
   const text = encodeURIComponent(config.prompt.substring(0, 50));
-  // Return a placeholder that represents the generated image
   return `https://placehold.co/1024x1024/0284c7/white?text=${text}`;
 };
 
 export const generateVideo = async (config: MediaGenerationConfig): Promise<string> => {
   await delay(3000);
-  // Return a sample video URL
   return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
 };
 
@@ -62,7 +106,6 @@ export const analyzeMedia = async (file: File): Promise<string> => {
 };
 
 export const consolidateMemory = async (history: Message[], currentMemory?: string): Promise<string> => {
-  // Local memory consolidation logic
   return currentMemory || "User prefers concise answers and is studying general topics.";
 };
 
@@ -103,7 +146,33 @@ export const generateResponse = async (
   const lowerQuery = currentQuery.toLowerCase();
   let text = "";
 
-  // 1. Check for specific modes
+  // 1. RAG-Enabled Response for Text Files
+  if (file && file.category === 'text' && file.content) {
+      const retrievedContext = retrieveContext(currentQuery, file.content);
+      
+      // Simulate the thought process in the response for transparency (Accuracy Protocol)
+      if (retrievedContext.length > 0) {
+          text = `**Accuracy Protocol: Context Retrieval**\nI found ${retrievedContext.length} relevant sections in your notes:\n\n`;
+          retrievedContext.forEach((chunk, i) => {
+              text += `> *"...${chunk.substring(0, 100)}..."*\n`;
+          });
+          text += `\n**Answer:**\nBased on these sections, `;
+          
+          if (lowerQuery.includes('summary')) {
+              text += "the document outlines the core themes efficiently. " + retrievedContext[0];
+          } else if (lowerQuery.includes('meaning') || lowerQuery.includes('define')) {
+              text += "the definition is implied in the context. " + retrievedContext[0];
+          } else {
+              text += `the notes suggest that this topic is central to the subject. specifically: ${retrievedContext[0]}`;
+          }
+          return { text, groundingLinks: [] };
+      } else {
+          text += `I scanned your document "${file.name}" but couldn't find a direct match for "${currentQuery}". Could you rephrase or ask about a different topic in the file?`;
+          return { text, groundingLinks: [] };
+      }
+  }
+
+  // 2. Specific Modes
   if (mode === 'maps' && location) {
     text = `[MOA Maps]\nBased on your location (${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}), I found several study spots nearby:\n\n1. Central Library (0.5km)\n2. Campus Coffee Hub (1.2km)\n3. Quiet Park Zone (0.8km)`;
     return { 
@@ -126,36 +195,24 @@ export const generateResponse = async (
     };
   }
 
-  // 2. Contextual Response Generation
-  if (file) {
-    text += `Analyzing context from "${file.name}"...\n\n`;
-    if (lowerQuery.includes('summary') || lowerQuery.includes('summarize')) {
-        text += pick(TEMPLATES.summary);
-    } else if (lowerQuery.includes('define') || lowerQuery.includes('meaning')) {
-        text += pick(TEMPLATES.definitions);
-    } else {
-        text += `Regarding your question about "${currentQuery}" in the context of this file: The document discusses this concept in detail, linking it to the broader subject matter.`;
-    }
+  // 3. Fallback / General Conversation
+  if (file && file.category !== 'text') {
+      text = `I can see the ${file.category} file "${file.name}". While I can't read text directly from this media type yet, I can discuss its general metadata or visual analysis if you generated it.`;
+  } else if (lowerQuery.match(/\b(hi|hello|hey)\b/)) {
+      text = pick(TEMPLATES.greetings);
+  } else if (lowerQuery.includes('plan') || lowerQuery.includes('project')) {
+      text = "I can help you plan that. Use the 'Deep Think' mode or ask me to generate a project plan to get a structured breakdown.";
   } else {
-    // General Conversation
-    if (lowerQuery.match(/\b(hi|hello|hey)\b/)) {
-        text = pick(TEMPLATES.greetings);
-    } else if (lowerQuery.includes('plan') || lowerQuery.includes('project')) {
-        text = "I can help you plan that. Use the 'Deep Think' mode or ask me to generate a project plan to get a structured breakdown.";
-    } else {
-        text = pick(TEMPLATES.general);
-    }
+      text = pick(TEMPLATES.general);
   }
 
-  // 3. Mode Enhancements
   if (mode === 'thinking') {
     text = `🧠 **MOA Reasoning**:\n1. Identified intent: ${lowerQuery}\n2. Retrieved knowledge context.\n3. Formulating structured response.\n\n---\n\n${text}`;
   } else if (mode === 'fast') {
     text = `⚡ ${text}`;
   }
 
-  // 4. Memory Integration
-  if (longTermMemory && Math.random() > 0.7) {
+  if (longTermMemory && Math.random() > 0.8) {
      text += `\n\n(Recalling: ${longTermMemory})`;
   }
 

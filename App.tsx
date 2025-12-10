@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan, UploadRecord } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT } from './constants';
 import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/moaApiService';
@@ -91,11 +91,40 @@ const App: React.FC = () => {
     }
   }, [messages.length, userState.user]); 
 
-  useEffect(() => {
+  // Robust State Saving with Quota Handling
+  const saveState = useCallback((state: any) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ userState, file, messages, customBackground }));
-    } catch (e) { console.error("Save state failed", e); }
-  }, [userState, file, messages, customBackground]);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e: any) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        console.warn("LocalStorage quota exceeded. Performing cleanup...");
+        try {
+          // Optimization: Remove content from upload history, keep only metadata
+          const optimizedState = {
+             ...state,
+             userState: {
+               ...state.userState,
+               uploadHistory: state.userState.uploadHistory.map((record: UploadRecord) => ({
+                 ...record,
+                 content: undefined, // Strip content to save space
+                 originalImage: undefined
+               }))
+             }
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(optimizedState));
+          console.log("State saved after optimization.");
+        } catch (retryError) {
+          console.error("Critical: Failed to save state even after cleanup.", retryError);
+        }
+      } else {
+        console.error("Save state failed", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    saveState({ userState, file, messages, customBackground });
+  }, [userState, file, messages, customBackground, saveState]);
 
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e: Event) => {
@@ -180,24 +209,19 @@ const App: React.FC = () => {
           type: newFile.type || 'application/octet-stream',
           size: size,
           date: Date.now(),
-          content: newFile.content,
+          content: newFile.content, // This might be large
           category: newFile.category,
           originalImage: newFile.originalImage 
       };
 
       setUserState(prev => ({
           ...prev,
-          uploadHistory: [record, ...(prev.uploadHistory || [])].slice(0, 50) // Keep last 50
+          uploadHistory: [record, ...(prev.uploadHistory || [])].slice(0, 20) // Limit to 20 to save space
       }));
   };
 
   const handleRestoreFile = (record: UploadRecord) => {
-      if (!record.content) {
-          alert("Could not restore file: Content not found in history.");
-          return;
-      }
-      
-      // Robustly determine category if missing
+      // Determine category if missing (for legacy records)
       let category = record.category;
       if (!category) {
           if (record.type.startsWith('image/')) category = 'image';
@@ -209,14 +233,14 @@ const App: React.FC = () => {
       setFile({
           name: record.name,
           type: record.type,
-          content: record.content,
+          content: record.content || "[Content not saved in history]",
           category: category,
           originalImage: record.originalImage
       });
 
       setMessages(prev => [...prev, { 
           role: 'model', 
-          text: `🔄 **Context Restored**: I've loaded "${record.name}" back into our session. What would you like to know about it?` 
+          text: `🔄 **Context Restored**: I've loaded "${record.name}" back into our session.${!record.content ? ' (Note: Content was archived to save space, analysis might be limited)' : ''}` 
       }]);
 
       setShowSettingsModal(false);
@@ -290,7 +314,7 @@ const App: React.FC = () => {
             category: 'text' 
         };
         setFile(processedFile);
-        setMessages([{ role: 'model', text: `Document loaded. Ask me anything about ${selectedFile.name}!` }]);
+        setMessages([{ role: 'model', text: `Document loaded. I've indexed ${text.length} characters. Ask me anything about ${selectedFile.name}!` }]);
       }
       
       addToUploadHistory(processedFile, selectedFile.size);
@@ -326,6 +350,13 @@ const App: React.FC = () => {
       const currentHistory = [...messages, { role: 'user', text: userMessage, attachment: currentAttachment, attachmentType: currentType } as Message];
       const { text, groundingLinks } = await generateResponse(currentHistory, userMessage, file, modelMode, userLocation, userState.longTermMemory);
       setMessages(prev => [...prev, { role: 'model', text, groundingLinks, modelMode }]);
+      
+      // Update usage count
+      setUserState(prev => ({
+        ...prev,
+        questionUsage: [...prev.questionUsage, Date.now()]
+      }));
+
     } catch (error) {
       setMessages(prev => [...prev, { role: 'model', text: "Sorry, I couldn't process that request right now.", isError: true }]);
     } finally {

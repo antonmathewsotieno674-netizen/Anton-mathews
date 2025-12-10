@@ -6,6 +6,8 @@ import { Button } from './Button';
 import { SOCIAL_LINKS, APP_NAME, APP_VERSION, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from '../constants';
 import { ContactSection } from './ContactSection';
 
+type SettingsTab = 'profile' | 'library' | 'community' | 'files' | 'feedback' | 'help' | 'about';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,7 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState(initialTab || 'profile');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'profile');
   
   // Profile Picture Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,7 +170,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {['profile', 'files', 'library', 'community', 'feedback', 'help', 'about'].map((tab) => (
              <button 
                 key={tab}
-                onClick={() => { setActiveTab(tab as any); setLegalView('none'); }}
+                onClick={() => { setActiveTab(tab as SettingsTab); setLegalView('none'); }}
                 className={`flex-1 min-w-[80px] py-3 text-sm font-medium transition-colors capitalize whitespace-nowrap px-4 ${
                   activeTab === tab 
                     ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-slate-50/50 dark:bg-slate-700/30' 
