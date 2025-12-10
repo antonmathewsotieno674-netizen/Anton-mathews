@@ -43,7 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about' | 'files'>(initialTab);
+  const [activeTab, setActiveTab] = useState(initialTab || 'profile');
   
   // Profile Picture Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,7 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab || 'profile');
       setLegalView('none'); // Reset legal view on open
     }
   }, [isOpen, initialTab]);
