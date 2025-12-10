@@ -1,4 +1,5 @@
 
+
 export const APP_NAME = "MOA AI";
 export const APP_VERSION = "2.1.0";
 export const PREMIUM_PRICE_KSH = 20;
@@ -9,6 +10,7 @@ export const MOA_MODEL_FAST = "moa-fast";
 export const MOA_MODEL_THINKING = "moa-reasoning"; 
 export const MOA_MODEL_MAPS = "moa-geo"; 
 export const MOA_MODEL_SEARCH = "moa-search";
+export const MOA_MODEL_DEEP_RESEARCH = "moa-deep-research";
 
 export const STORAGE_KEY = "MOA_APP_STATE_V1";
 export const LIBRARY_STORAGE_KEY = "MOA_PUBLIC_LIBRARY_V1";

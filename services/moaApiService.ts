@@ -1,4 +1,5 @@
 
+
 import { UploadedFile, Message, ActionItem, ModelMode, GroundingLink, MediaGenerationConfig, ProjectPlan } from "../types";
 
 // MOA API: Independent AI Service Implementation
@@ -198,6 +199,45 @@ export const extractTasks = async (file: UploadedFile | null, history: Message[]
   ];
 };
 
+const performDeepResearch = async (query: string): Promise<{ text: string, links: GroundingLink[] }> => {
+  // Simulate a multi-step research agent
+  await delay(1000); // Phase 1: Planning
+  const subQueries = [
+    query + " history",
+    query + " latest statistics 2024",
+    query + " academic perspectives"
+  ];
+  
+  await delay(1500); // Phase 2: Searching & Reading
+  
+  return {
+    text: `## 🔬 Deep Research Report: ${query}
+
+### Executive Summary
+Based on extensive analysis, the topic of "${query}" presents significant multi-faceted implications. The research indicates a strong correlation between recent developments and established theoretical frameworks.
+
+### 📊 Key Findings
+1. **Historical Context**: The origins can be traced back to early foundational studies, which established the core principles still in use today.
+2. **Current Trends (2024)**: Recent data suggests a 40% increase in adoption/interest regarding this subject.
+3. **Critical Analysis**: While benefits are clear, several academic sources point to potential challenges in scalability and implementation.
+
+### 🔍 Detailed Breakdown
+The investigation revealed that while the primary concept remains stable, edge cases have emerged. Specifically:
+* **Sector A**: Shows rapid growth.
+* **Sector B**: Remains stable but requires policy updates.
+
+### Conclusion
+To move forward, it is recommended to focus on the intersection of these findings. Further study is suggested for the long-term impacts.
+
+> *Generated via MOA Deep Research Agent*`,
+    links: [
+      { title: "Global Research Journal (2024)", uri: "https://scholar.google.com", source: "search" },
+      { title: "Statistical Data Bureau", uri: "https://data.gov", source: "search" },
+      { title: "Academic Archive: " + query, uri: "https://archive.org", source: "search" }
+    ]
+  };
+};
+
 export const generateResponse = async (
   history: Message[],
   currentQuery: string,
@@ -206,6 +246,16 @@ export const generateResponse = async (
   location?: { lat: number; lng: number },
   longTermMemory?: string
 ): Promise<{ text: string, groundingLinks?: GroundingLink[] }> => {
+  
+  // Handle Deep Research Mode specifically
+  if (mode === 'deep-research') {
+    const result = await performDeepResearch(currentQuery);
+    return {
+      text: result.text,
+      groundingLinks: result.links
+    };
+  }
+
   await delay(SIMULATED_LATENCY + Math.random() * 500);
   
   const lowerQuery = currentQuery.toLowerCase();

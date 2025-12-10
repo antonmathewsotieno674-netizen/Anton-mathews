@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { APP_NAME } from '../constants';
@@ -9,6 +8,9 @@ interface AuthScreenProps {
 }
 
 type AuthMode = 'signin' | 'signup' | 'forgot_password';
+
+// Simulated User Database Key
+const USERS_DB_KEY = 'MOA_USERS_DB';
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<AuthMode>('signin');
@@ -39,6 +41,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
   }, [mode]);
 
+  const getUsersDB = () => {
+      try {
+          const db = localStorage.getItem(USERS_DB_KEY);
+          return db ? JSON.parse(db) : [];
+      } catch {
+          return [];
+      }
+  };
+
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier || !password) {
@@ -47,17 +58,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
     
     setIsLoading(true);
-    // Simulate API call
+    
+    // Simulate API delay
     setTimeout(() => {
-      onLogin({
-        id: 'user-' + Math.random().toString(36).substr(2, 9),
-        name: identifier.split('@')[0] || 'User',
-        email: method === 'email' ? identifier : undefined,
-        phone: method === 'phone' ? identifier : undefined,
-        authMethod: method
-      });
-      setIsLoading(false);
-    }, 1500);
+      const users = getUsersDB();
+      const foundUser = users.find((u: any) => 
+          (method === 'email' && u.email === identifier) || 
+          (method === 'phone' && u.phone === identifier)
+      );
+
+      if (foundUser && foundUser.password === password) {
+          onLogin({
+              id: foundUser.id,
+              name: foundUser.name,
+              email: foundUser.email,
+              phone: foundUser.phone,
+              authMethod: method
+          });
+      } else {
+          setError('Invalid credentials. Please check your details.');
+          setIsLoading(false);
+      }
+    }, 1200);
   };
 
   const handleSignUp = (e: React.FormEvent) => {
@@ -78,12 +100,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
 
     setIsLoading(true);
+
     setTimeout(() => {
+      const users = getUsersDB();
+      const existing = users.find((u: any) => 
+          (method === 'email' && u.email === identifier) || 
+          (method === 'phone' && u.phone === identifier)
+      );
+
+      if (existing) {
+          setError('User already exists. Please sign in.');
+          setIsLoading(false);
+          return;
+      }
+
+      const newUser = {
+          id: 'user-' + Date.now().toString(36),
+          name,
+          email: method === 'email' ? identifier : undefined,
+          phone: method === 'phone' ? identifier : undefined,
+          password, // In a real app, never store plain text passwords
+          authMethod: method
+      };
+
+      users.push(newUser);
+      localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
+
       onLogin({
-        id: 'user-' + Math.random().toString(36).substr(2, 9),
-        name: name,
-        email: method === 'email' ? identifier : undefined,
-        phone: method === 'phone' ? identifier : undefined,
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
         authMethod: method
       });
       setIsLoading(false);
@@ -102,9 +149,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         setIsLoading(true);
         // Simulate checking if user exists
         setTimeout(() => {
+            const users = getUsersDB();
+            const exists = users.find((u: any) => 
+                (method === 'email' && u.email === identifier) || 
+                (method === 'phone' && u.phone === identifier)
+            );
+            
             setIsLoading(false);
-            setResetStep(2);
-            setSuccessMessage('Account verified. Please create a new password.');
+            if (exists) {
+                setResetStep(2);
+                setSuccessMessage('Account verified. Please create a new password.');
+            } else {
+                setError('Account not found.');
+            }
         }, 1000);
     } else {
         if (!password || !confirmPassword) {
@@ -122,11 +179,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
         setIsLoading(true);
         setTimeout(() => {
+            const users = getUsersDB();
+            const index = users.findIndex((u: any) => 
+                (method === 'email' && u.email === identifier) || 
+                (method === 'phone' && u.phone === identifier)
+            );
+
+            if (index !== -1) {
+                users[index].password = password;
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
+                setSuccessMessage('Password successfully updated! Redirecting...');
+                setTimeout(() => {
+                    setMode('signin');
+                }, 2000);
+            }
             setIsLoading(false);
-            setSuccessMessage('Password successfully updated! Redirecting to login...');
-            setTimeout(() => {
-                setMode('signin');
-            }, 2000);
         }, 1500);
     }
   };
@@ -152,23 +219,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
       }
   };
 
-  const renderSubtitle = () => {
-      switch(mode) {
-          case 'signup': return 'Sign up to get started';
-          case 'forgot_password': return 'Recover your account access';
-          default: return 'Your intelligent study companion';
-      }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 transition-colors">
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors animate-in fade-in zoom-in duration-300">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors animate-fade-in-up">
         <div className="bg-brand-600 p-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-brand-500 to-indigo-600 opacity-90"></div>
           <div className="relative z-10">
             <div className="w-16 h-16 bg-white rounded-xl mx-auto flex items-center justify-center text-brand-600 font-bold text-3xl mb-4 shadow-lg">M</div>
             <h1 className="text-2xl font-bold text-white mb-2">{renderTitle()}</h1>
-            <p className="text-brand-100">{renderSubtitle()}</p>
+            <p className="text-brand-100">Your intelligent study companion</p>
           </div>
         </div>
 
@@ -219,14 +278,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           </div>
           
           {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-100 dark:border-red-900/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-100 dark:border-red-900/30 flex items-center gap-2 animate-fade-in-up">
                   <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {error}
               </div>
           )}
 
           {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg border border-green-100 dark:border-green-900/30 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg border border-green-100 dark:border-green-900/30 flex items-center gap-2 animate-fade-in-up">
                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   {successMessage}
               </div>
@@ -235,7 +294,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           <form onSubmit={mode === 'signin' ? handleSignIn : mode === 'signup' ? handleSignUp : handleResetPassword} className="space-y-4">
             
             {mode === 'signup' && (
-                <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="animate-fade-in-up">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Full Name
                     </label>
@@ -247,12 +306,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         disabled={isLoading}
+                        autoComplete="name"
                     />
                 </div>
             )}
 
             {(mode !== 'forgot_password' || resetStep === 1) && (
-                <div className="animate-in fade-in duration-300">
+                <div className="animate-fade-in-up">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         {method === 'email' ? 'Email Address' : 'Phone Number'}
                     </label>
@@ -264,12 +324,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
                         disabled={isLoading || (mode === 'forgot_password' && resetStep === 2)}
+                        autoComplete={method === 'email' ? 'username email' : 'tel'}
                     />
                 </div>
             )}
 
             {(mode !== 'forgot_password' || resetStep === 2) && (
-                <div className="animate-in fade-in duration-300">
+                <div className="animate-fade-in-up">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         {mode === 'forgot_password' ? 'New Password' : 'Password'}
                     </label>
@@ -281,12 +342,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={isLoading}
+                        autoComplete={mode === 'signin' ? "current-password" : "new-password"}
                     />
                 </div>
             )}
 
             {(mode === 'signup' || (mode === 'forgot_password' && resetStep === 2)) && (
-                 <div className="animate-in fade-in duration-300">
+                 <div className="animate-fade-in-up">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Confirm Password
                     </label>
@@ -298,6 +360,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         disabled={isLoading}
+                        autoComplete="new-password"
                     />
                 </div>
             )}

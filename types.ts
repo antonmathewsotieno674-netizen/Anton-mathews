@@ -1,6 +1,6 @@
 
 
-export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps' | 'search';
+export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps' | 'search' | 'deep-research';
 
 export interface GroundingLink {
   title: string;

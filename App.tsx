@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan, UploadRecord } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT } from './constants';
@@ -64,6 +66,7 @@ const App: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null); 
   const chatCameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community' | 'files'>('profile');
@@ -159,8 +162,8 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    // Only clear the active user session, do not wipe data (notes/history)
     setUserState(prev => ({ ...prev, user: null }));
-    localStorage.removeItem(STORAGE_KEY);
     setCurrentView('landing');
   };
 
@@ -203,6 +206,31 @@ const App: React.FC = () => {
     } finally {
       setIsGeneratingBg(false);
     }
+  };
+
+  const handleCreatePlan = async () => {
+     let goal = input.trim();
+     if (!goal) {
+       goal = window.prompt("What is the goal of your project?") || "";
+     }
+     if (!goal) return;
+
+     const loadingMsg: Message = { role: 'model', text: 'Genering project plan...' };
+     setMessages(prev => [...prev, loadingMsg]);
+     
+     try {
+       const plan = await generateProjectPlan(goal);
+       const planText = `**Project Plan: ${plan.title}**\n\n` + 
+         plan.steps.map(s => `• **${s.step}**: ${s.details}`).join('\n');
+         
+       setMessages(prev => [
+         ...prev.slice(0, -1), 
+         { role: 'model', text: planText }
+       ]);
+     } catch (e) {
+       setMessages(prev => prev.slice(0, -1));
+       alert("Failed to generate plan");
+     }
   };
 
   const handleSendMessage = async () => {
@@ -301,6 +329,20 @@ const App: React.FC = () => {
     }
   };
 
+  const handleChatAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+           setChatAttachment(e.target.result as string);
+           setChatAttachmentType(file.type.startsWith('video') ? 'video' : 'image');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleTaskExtraction = async () => {
     setIsExtractingTasks(true);
     setShowTaskModal(true);
@@ -312,6 +354,39 @@ const App: React.FC = () => {
     } finally {
       setIsExtractingTasks(false);
     }
+  };
+
+  const handleRestoreFile = (record: UploadRecord) => {
+      // Robustly handle missing content or category
+      if (!record.content) {
+          alert("Cannot restore this file: content is missing.");
+          return;
+      }
+      
+      // Infer category if missing (for older backups)
+      let category: 'image' | 'text' | 'video' | 'audio' = record.category || 'text';
+      if (!record.category && record.type) {
+          if (record.type.startsWith('image')) category = 'image';
+          else if (record.type.startsWith('video')) category = 'video';
+          else if (record.type.startsWith('audio')) category = 'audio';
+      }
+
+      setFile({
+          name: record.name,
+          type: record.type,
+          content: record.content,
+          category: category,
+          originalImage: record.originalImage
+      });
+      setShowSettingsModal(false);
+      setMessages(prev => [...prev, { role: 'model', text: `Restored context from "${record.name}".` }]);
+  };
+
+  const handleDeleteFile = (id: string) => {
+      setUserState(prev => ({
+          ...prev,
+          uploadHistory: prev.uploadHistory.filter(h => h.id !== id)
+      }));
   };
 
   return (
@@ -340,6 +415,9 @@ const App: React.FC = () => {
                 <h1 className="font-bold text-slate-800 dark:text-white hidden sm:block tracking-tight">{APP_NAME}</h1>
              </div>
              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleCreatePlan} title="Create Project Plan" className="hidden sm:flex">
+                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowMediaModal(true)} className="hidden sm:flex">Create Media</Button>
                 <Button 
                    id="tasks-button"
@@ -376,6 +454,22 @@ const App: React.FC = () => {
                      className="hidden" 
                      accept=".pdf,.docx,.txt,.jpg,.png,.mp4"
                    />
+                   <input 
+                     type="file" 
+                     accept="image/*" 
+                     capture="environment"
+                     ref={cameraInputRef} 
+                     onChange={handleFileUpload} 
+                     className="hidden" 
+                   />
+                   <input 
+                     type="file" 
+                     accept="video/*" 
+                     capture="environment"
+                     ref={videoInputRef} 
+                     onChange={handleFileUpload} 
+                     className="hidden" 
+                   />
                    <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                       <svg className="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                    </div>
@@ -387,6 +481,18 @@ const App: React.FC = () => {
                    {uploadSuccess && <p className="text-xs text-green-500 mt-2 font-medium">Uploaded!</p>}
                 </div>
                 
+                {/* Camera Actions */}
+                <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()} className="text-xs flex items-center justify-center gap-1">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        Photo
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()} className="text-xs flex items-center justify-center gap-1">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Video
+                    </Button>
+                </div>
+
                 <div id="model-selector" className="space-y-2">
                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Model Mode</label>
                    <select 
@@ -397,6 +503,7 @@ const App: React.FC = () => {
                      <option value="standard">Standard</option>
                      <option value="fast">Fast (Turbo)</option>
                      <option value="thinking">Deep Think</option>
+                     <option value="deep-research">Deep Research (Beta)</option>
                      <option value="maps">Maps</option>
                      <option value="search">Web Search</option>
                    </select>
@@ -417,6 +524,9 @@ const App: React.FC = () => {
                                 <button onClick={() => setShowPaymentModal(true)} className="text-[10px] text-brand-600 dark:text-brand-400 font-bold hover:underline">Upgrade</button>
                             )}
                         </div>
+                    </div>
+                     <div className="mt-2 text-center">
+                        <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-red-500">Sign Out</button>
                     </div>
                 </div>
              </aside>
@@ -442,13 +552,49 @@ const App: React.FC = () => {
                       >
                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                       </button>
+                      <button 
+                         onClick={() => chatCameraInputRef.current?.click()}
+                         className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                         title="Take Photo"
+                      >
+                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      </button>
+                      
+                      {/* Hidden input for chat attachment */}
+                      <input 
+                         type="file" 
+                         accept="image/*" 
+                         capture="environment"
+                         ref={chatCameraInputRef} 
+                         onChange={handleChatAttachment} 
+                         className="hidden" 
+                       />
+
                       <div className="flex-1 relative">
+                          {/* Preview of chat attachment */}
+                          {chatAttachment && (
+                              <div className="absolute bottom-full mb-2 left-0 bg-white dark:bg-slate-800 p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                                  <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden">
+                                      {chatAttachmentType === 'video' ? (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>
+                                        </div>
+                                      ) : (
+                                        <img src={chatAttachment} alt="Preview" className="w-full h-full object-cover" />
+                                      )}
+                                  </div>
+                                  <button onClick={() => setChatAttachment(undefined)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500">
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                              </div>
+                          )}
+
                           <input 
                             type="text" 
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="Ask MOA AI..."
+                            placeholder={chatAttachment ? "Add a caption..." : "Ask MOA AI..."}
                             className="w-full h-full bg-slate-100 dark:bg-slate-800 border-0 rounded-xl px-4 pl-4 pr-12 focus:ring-2 focus:ring-brand-500 outline-none text-slate-900 dark:text-white placeholder-slate-400 transition-all"
                           />
                           {/* Mobile Upload Trigger inside Input */}
@@ -502,22 +648,8 @@ const App: React.FC = () => {
                 setMessages(prev => [...prev, { role: 'model', text: `I've loaded the note: "${item.title}" from the library. What would you like to know about it?` }]);
              }}
              initialTab={settingsInitialTab}
-             onRestoreFile={(record) => {
-                 setFile({
-                     name: record.name,
-                     type: record.type,
-                     content: record.content!,
-                     category: record.category || 'text'
-                 });
-                 setShowSettingsModal(false);
-                 setMessages(prev => [...prev, { role: 'model', text: `Restored context from "${record.name}".` }]);
-             }}
-             onDeleteFile={(id) => {
-                 setUserState(prev => ({
-                     ...prev,
-                     uploadHistory: prev.uploadHistory.filter(h => h.id !== id)
-                 }));
-             }}
+             onRestoreFile={handleRestoreFile}
+             onDeleteFile={handleDeleteFile}
           />
 
           <TaskManagerModal 
