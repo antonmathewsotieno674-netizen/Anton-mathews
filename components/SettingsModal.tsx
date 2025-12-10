@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UserState, LibraryItem } from '../types';
+import { UserState, LibraryItem, UploadRecord } from '../types';
 import { Button } from './Button';
 import { SOCIAL_LINKS, APP_NAME, APP_VERSION, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA } from '../constants';
 import { ContactSection } from './ContactSection';
@@ -19,7 +19,9 @@ interface SettingsModalProps {
   onGenerateBackground?: () => Promise<void>;
   isGeneratingBackground?: boolean;
   onImport: (item: LibraryItem) => void;
-  initialTab?: 'profile' | 'library' | 'community';
+  initialTab?: 'profile' | 'library' | 'community' | 'files';
+  onRestoreFile?: (record: UploadRecord) => void;
+  onDeleteFile?: (id: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -35,11 +37,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onGenerateBackground,
   isGeneratingBackground,
   onImport,
-  initialTab = 'profile'
+  initialTab = 'profile',
+  onRestoreFile,
+  onDeleteFile
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(userState.user?.name || '');
-  const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'profile' | 'library' | 'community' | 'feedback' | 'help' | 'about' | 'files'>(initialTab);
   
   // Profile Picture Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -161,7 +165,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tabs - Scrollable with hidden scrollbar */}
         <div className="flex border-b border-slate-100 dark:border-slate-700 shrink-0 overflow-x-auto scrollbar-hide">
-          {['profile', 'library', 'community', 'feedback', 'help', 'about'].map((tab) => (
+          {['profile', 'files', 'library', 'community', 'feedback', 'help', 'about'].map((tab) => (
              <button 
                 key={tab}
                 onClick={() => { setActiveTab(tab as any); setLegalView('none'); }}
@@ -316,46 +320,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  </div>
               </div>
 
-              {/* Upload History Section */}
-              {userState.uploadHistory && userState.uploadHistory.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Upload History</h3>
-                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-h-48 overflow-y-auto">
-                    {userState.uploadHistory.map((record) => (
-                       <div key={record.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
-                          <div>
-                             <p className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">{record.name}</p>
-                             <p className="text-xs text-slate-400">{record.type.split('/')[1]?.toUpperCase() || 'FILE'}</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-xs text-slate-400">{new Date(record.date).toLocaleDateString()}</p>
-                          </div>
-                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Download History Section - Added as requested */}
-              {userState.downloadHistory && userState.downloadHistory.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Library Downloads</h3>
-                  <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm max-h-48 overflow-y-auto">
-                    {userState.downloadHistory.map((record) => (
-                       <div key={record.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
-                          <div>
-                             <p className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">{record.itemTitle}</p>
-                             <p className="text-xs text-slate-400">by {record.itemAuthor}</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-xs text-slate-400">{new Date(record.date).toLocaleDateString()}</p>
-                          </div>
-                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Payment History */}
               {userState.paymentHistory && userState.paymentHistory.length > 0 && (
                 <div>
@@ -409,6 +373,63 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
             </div>
+          )}
+
+          {activeTab === 'files' && (
+             <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Uploaded Files</h3>
+                   <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full">
+                      {userState.uploadHistory.length} files
+                   </span>
+                </div>
+                
+                {userState.uploadHistory && userState.uploadHistory.length > 0 ? (
+                    <div className="space-y-3">
+                       {userState.uploadHistory.map((record) => (
+                          <div key={record.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                             <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-slate-800 dark:text-white truncate" title={record.name}>{record.name}</h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                   <span>{(record.size ? (record.size / 1024).toFixed(1) + ' KB' : 'Unknown size')}</span>
+                                   <span>•</span>
+                                   <span className="uppercase">{record.type?.split('/')[1] || 'FILE'}</span>
+                                   <span>•</span>
+                                   <span>{new Date(record.date).toLocaleDateString()}</span>
+                                </div>
+                             </div>
+                             
+                             <div className="flex items-center gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="text-xs py-1.5 h-8"
+                                  onClick={() => onRestoreFile && onRestoreFile(record)}
+                                  disabled={!record.content}
+                                >
+                                   {record.content ? 'Load Context' : 'No Data'}
+                                </Button>
+                                <button 
+                                  onClick={() => onDeleteFile && onDeleteFile(record.id)}
+                                  className="p-2 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  title="Delete from history"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                       <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                       </div>
+                       <h3 className="text-slate-600 dark:text-slate-300 font-medium">No uploads yet</h3>
+                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Uploaded files will appear here.</p>
+                    </div>
+                )}
+             </div>
           )}
 
           {activeTab === 'library' && (
@@ -602,7 +623,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  </div>
                </div>
                
-               {/* Contact Support Section moved here */}
                <ContactSection />
              </div>
           )}

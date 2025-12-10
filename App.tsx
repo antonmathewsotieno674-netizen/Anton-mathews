@@ -1,8 +1,9 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan } from './types';
-import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
-import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/geminiService';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan, UploadRecord } from './types';
+import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT } from './constants';
+import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/moaApiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -60,7 +61,7 @@ const App: React.FC = () => {
   const chatCameraInputRef = useRef<HTMLInputElement>(null);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community'>('profile');
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'profile' | 'library' | 'community' | 'files'>('profile');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [tasks, setTasks] = useState<ActionItem[]>([]);
   const [isExtractingTasks, setIsExtractingTasks] = useState(false);
@@ -154,15 +155,59 @@ const App: React.FC = () => {
 
   const handleTextToSpeech = (text: string) => {
     if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      // Optional: Set voice or rate properties here
-      // utterance.rate = 1.0;
       window.speechSynthesis.speak(utterance);
     } else {
       console.warn("Text-to-speech is not supported in this browser.");
     }
+  };
+
+  const addToUploadHistory = (newFile: UploadedFile, size: number) => {
+      const record: UploadRecord = {
+          id: `up_${Date.now()}`,
+          name: newFile.name,
+          type: newFile.type || 'application/octet-stream',
+          size: size,
+          date: Date.now(),
+          content: newFile.content,
+          category: newFile.category,
+          originalImage: newFile.originalImage 
+      };
+
+      setUserState(prev => ({
+          ...prev,
+          uploadHistory: [record, ...(prev.uploadHistory || [])].slice(0, 50) // Keep last 50
+      }));
+  };
+
+  const handleRestoreFile = (record: UploadRecord) => {
+      if (!record.content) {
+          alert("Could not restore file: Content not found in history.");
+          return;
+      }
+      
+      setFile({
+          name: record.name,
+          type: record.type,
+          content: record.content,
+          category: record.category || 'text',
+          originalImage: record.originalImage
+      });
+
+      setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: `🔄 **Context Restored**: I've loaded "${record.name}" back into our session. What would you like to know about it?` 
+      }]);
+
+      setShowSettingsModal(false);
+  };
+
+  const handleDeleteFile = (id: string) => {
+      setUserState(prev => ({
+          ...prev,
+          uploadHistory: prev.uploadHistory.filter(item => item.id !== id)
+      }));
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,38 +227,56 @@ const App: React.FC = () => {
       const isImage = selectedFile.type.startsWith('image/');
       const isVideo = selectedFile.type.startsWith('video/');
       const isAudio = selectedFile.type.startsWith('audio/');
+      let processedFile: UploadedFile;
 
       if (isImage) {
         setProcessingStatus('Analyzing Image...');
         const text = await performOCR(selectedFile);
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);
-        reader.onload = () => {
-           setFile({ name: selectedFile.name, type: selectedFile.type, content: text, category: 'image', originalImage: reader.result as string });
-           setMessages([{ role: 'model', text: `Image analyzed. Content extracted: ${text.substring(0, 100)}...` }]);
+        await new Promise(resolve => { reader.onload = resolve; });
+        
+        processedFile = { 
+            name: selectedFile.name, 
+            type: selectedFile.type, 
+            content: text, 
+            category: 'image', 
+            originalImage: reader.result as string 
         };
+        setFile(processedFile);
+        setMessages([{ role: 'model', text: `Image analyzed. Content extracted: ${text.substring(0, 100)}...` }]);
+        
       } else if (isVideo || isAudio) {
         setProcessingStatus(isVideo ? 'Analyzing Video...' : 'Transcribing Audio...');
         const text = await analyzeMedia(selectedFile);
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);
-        reader.onload = () => {
-           setFile({ name: selectedFile.name, type: selectedFile.type, content: reader.result as string, category: isVideo ? 'video' : 'audio' });
-           setMessages([{ role: 'model', text: `Media Analysis Result:\n${text}` }]);
+        await new Promise(resolve => { reader.onload = resolve; });
+
+        processedFile = { 
+            name: selectedFile.name, 
+            type: selectedFile.type, 
+            content: reader.result as string, 
+            category: isVideo ? 'video' : 'audio' 
         };
+        setFile(processedFile);
+        setMessages([{ role: 'model', text: `Media Analysis Result:\n${text}` }]);
       } else {
         setProcessingStatus('Reading document...');
         const text = await parseFileContent(selectedFile);
-        setFile({ name: selectedFile.name, type: selectedFile.type, content: text, category: 'text' });
+        processedFile = { 
+            name: selectedFile.name, 
+            type: selectedFile.type, 
+            content: text, 
+            category: 'text' 
+        };
+        setFile(processedFile);
         setMessages([{ role: 'model', text: `Document loaded. Ask me anything about ${selectedFile.name}!` }]);
       }
       
-      setUserState(prev => ({
-        ...prev,
-        uploadHistory: [{ id: `up_${Date.now()}`, name: selectedFile.name, type: selectedFile.type || 'application/octet-stream', size: selectedFile.size, date: Date.now() }, ...(prev.uploadHistory || [])]
-      }));
-
+      addToUploadHistory(processedFile, selectedFile.size);
       setShowSharePrompt(true);
+
     } catch (error: any) {
       setMessages([{ role: 'model', text: `Error: ${error.message}`, isError: true }]);
     } finally {
@@ -264,7 +327,6 @@ const App: React.FC = () => {
 
   const handleExtractTasks = async () => { setShowTaskModal(true); setIsExtractingTasks(true); try { setTasks(await extractTasks(file, messages)); } finally { setIsExtractingTasks(false); }};
   
-  // New: Advanced Scaffolding Trigger
   const handleCreatePlan = async () => {
     if (!input.trim()) { alert("Please type a goal in the chat box first (e.g. 'Plan a startup')"); return; }
     setIsLoading(true);
@@ -347,7 +409,11 @@ const App: React.FC = () => {
              </label>
              <button onClick={() => cameraInputRef.current?.click()} className="w-full flex items-center justify-center gap-2 mb-2 py-2.5 bg-slate-100 dark:bg-slate-700 rounded-xl text-sm font-medium">Take Photo</button>
              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileUpload} />
-             <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-700">
+             <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                <button onClick={() => { setSettingsInitialTab('files'); setShowSettingsModal(true); }} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                   Manage Files
+                </button>
                 <button onClick={() => { setSettingsInitialTab('library'); setShowSettingsModal(true); }} className="w-full flex items-center justify-center gap-2 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-xl text-sm font-medium">Community Library</button>
              </div>
           </div>
@@ -381,7 +447,6 @@ const App: React.FC = () => {
                   <input ref={chatCameraInputRef} type="file" accept="image/*,video/*,audio/*" capture="environment" className="hidden" onChange={handleChatAttachment} />
                   {hasSupport && <button type="button" onClick={toggleListening} className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'text-slate-400 hover:text-brand-600'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></button>}
                 </div>
-                {/* Advanced Mode Toggle in input area */}
                 {modelMode === 'thinking' ? (
                    <Button type="button" onClick={handleCreatePlan} title="Create Project Plan" className="rounded-2xl px-3 bg-purple-600 hover:bg-purple-700">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
@@ -396,7 +461,22 @@ const App: React.FC = () => {
       </div>
 
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} onSuccess={() => { setUserState(p => ({...p, isPremium: true, premiumExpiryDate: Date.now() + PREMIUM_VALIDITY_MS})); setShowPaymentModal(false); }} />
-      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} userState={userState} onUpdateUser={(n) => setUserState(p => ({...p, user: {...p.user!, name: n}}))} theme={theme} toggleTheme={toggleTheme} onUpgrade={() => {setShowSettingsModal(false); setShowPaymentModal(true)}} onHelp={() => setInput("How to use?")} onGenerateBackground={handleGenerateBackground} isGeneratingBackground={isGeneratingBg} onImport={() => {}} initialTab={settingsInitialTab} />
+      <SettingsModal 
+        isOpen={showSettingsModal} 
+        onClose={() => setShowSettingsModal(false)} 
+        userState={userState} 
+        onUpdateUser={(n) => setUserState(p => ({...p, user: {...p.user!, name: n}}))} 
+        theme={theme} 
+        toggleTheme={toggleTheme} 
+        onUpgrade={() => {setShowSettingsModal(false); setShowPaymentModal(true)}} 
+        onHelp={() => setInput("How to use?")} 
+        onGenerateBackground={handleGenerateBackground} 
+        isGeneratingBackground={isGeneratingBg} 
+        onImport={() => {}} 
+        initialTab={settingsInitialTab} 
+        onRestoreFile={handleRestoreFile}
+        onDeleteFile={handleDeleteFile}
+      />
       <TaskManagerModal isOpen={showTaskModal} onClose={() => setShowTaskModal(false)} tasks={tasks} isLoading={isExtractingTasks} />
       <MediaCreationModal isOpen={showMediaModal} onClose={() => setShowMediaModal(false)} onGenerate={handleGenerateMedia} isLoading={isGeneratingMedia} />
     </div>

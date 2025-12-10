@@ -73,6 +73,10 @@ export interface UploadRecord {
   type: string;
   size?: number;
   date: number;
+  // Fields for file restoration
+  content?: string;
+  category?: 'image' | 'text' | 'video' | 'audio';
+  originalImage?: string;
 }
 
 export interface UserState {

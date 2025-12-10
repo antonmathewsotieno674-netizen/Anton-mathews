@@ -3,20 +3,12 @@ export const APP_NAME = "MOA AI";
 export const APP_VERSION = "2.1.0";
 export const PREMIUM_PRICE_KSH = 20;
 
-// Model Definitions
-export const GEMINI_MODEL_STANDARD = "gemini-2.5-flash"; 
-export const GEMINI_MODEL_FAST = "gemini-2.5-flash-lite-latest"; 
-export const GEMINI_MODEL_THINKING = "gemini-3-pro-preview"; 
-export const GEMINI_MODEL_MAPS = "gemini-2.5-flash"; 
-export const GEMINI_MODEL_SEARCH = "gemini-2.5-flash";
-export const GEMINI_MODEL_VISION = "gemini-3-pro-preview"; // Upgraded for better image understanding
-export const GEMINI_MODEL_VIDEO_UNDERSTANDING = "gemini-3-pro-preview";
-export const GEMINI_MODEL_AUDIO_TRANSCRIPTION = "gemini-2.5-flash";
-
-// Generation Models
-export const MODEL_IMAGE_GEN = "gemini-3-pro-image-preview";
-export const MODEL_VIDEO_GEN = "veo-3.1-fast-generate-preview";
-export const MODEL_TTS = "gemini-2.5-flash-preview-tts";
+// MOA Internal Models
+export const MOA_MODEL_STANDARD = "moa-standard"; 
+export const MOA_MODEL_FAST = "moa-fast"; 
+export const MOA_MODEL_THINKING = "moa-reasoning"; 
+export const MOA_MODEL_MAPS = "moa-geo"; 
+export const MOA_MODEL_SEARCH = "moa-search";
 
 export const STORAGE_KEY = "MOA_APP_STATE_V1";
 export const LIBRARY_STORAGE_KEY = "MOA_PUBLIC_LIBRARY_V1";
