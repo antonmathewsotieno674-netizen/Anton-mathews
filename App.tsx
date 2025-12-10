@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadedFile, Message, UserState, User, LibraryItem, BeforeInstallPromptEvent, ActionItem, ModelMode, MediaGenerationConfig, ProjectPlan } from './types';
 import { APP_NAME, STORAGE_KEY, PREMIUM_VALIDITY_MS, LIBRARY_STORAGE_KEY, INITIAL_LIBRARY_DATA, PREMIUM_PRICE_KSH, FREE_QUESTIONS_LIMIT, USAGE_WINDOW_MS } from './constants';
-import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, generateSpeech, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/geminiService';
+import { generateResponse, performOCR, generateWallpaper, extractTasks, generateVideo, generateProImage, analyzeMedia, consolidateMemory, generateProjectPlan } from './services/geminiService';
 import { Button } from './components/Button';
 import { PaymentModal } from './components/PaymentModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -126,20 +126,6 @@ const App: React.FC = () => {
   };
 
   const handleGenerateMedia = async (config: MediaGenerationConfig) => {
-    // API Key Selection Check
-    if (window.aistudio) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            try {
-                await window.aistudio.openSelectKey();
-                // We proceed, assuming success. If they cancelled, the next call will likely fail, which is handled.
-            } catch (e) {
-                console.error("Key selection failed", e);
-                return;
-            }
-        }
-    }
-
     setIsGeneratingMedia(true);
     try {
       let mediaUrl;
@@ -160,19 +146,22 @@ const App: React.FC = () => {
       }]);
       setShowMediaModal(false);
     } catch (error) {
-      alert("Media generation failed. Ensure you have a valid API key selected.");
+      alert("Media generation failed.");
     } finally {
       setIsGeneratingMedia(false);
     }
   };
 
-  const handleTextToSpeech = async (text: string) => {
-    try {
-      const base64Audio = await generateSpeech(text);
-      const audio = new Audio("data:audio/mp3;base64," + base64Audio); 
-      audio.play();
-    } catch (e) {
-      console.error("TTS Failed", e);
+  const handleTextToSpeech = (text: string) => {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Optional: Set voice or rate properties here
+      // utterance.rate = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.warn("Text-to-speech is not supported in this browser.");
     }
   };
 
@@ -204,7 +193,7 @@ const App: React.FC = () => {
            setMessages([{ role: 'model', text: `Image analyzed. Content extracted: ${text.substring(0, 100)}...` }]);
         };
       } else if (isVideo || isAudio) {
-        setProcessingStatus(isVideo ? 'Analyzing Video (Veo)...' : 'Transcribing Audio...');
+        setProcessingStatus(isVideo ? 'Analyzing Video...' : 'Transcribing Audio...');
         const text = await analyzeMedia(selectedFile);
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);

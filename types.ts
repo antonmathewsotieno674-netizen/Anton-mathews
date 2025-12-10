@@ -118,14 +118,3 @@ export interface MediaGenerationConfig {
   imageSize?: '1K' | '2K' | '4K'; // Only for image
   referenceImage?: string; // Base64 for Veo image-to-video or editing
 }
-
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
