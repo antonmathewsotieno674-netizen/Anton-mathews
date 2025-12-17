@@ -101,20 +101,12 @@ export const generateResponse = async (
   }
 
   // C. Add Conversation History (Last 5 turns to save context window)
-  // Note: For simple stateless calls, we might just append previous messages as text, 
-  // but here we are constructing the prompt for a single generation call.
-  // Ideally, we use ai.chats.create() for chat, but here we strictly follow the 'generateContent' pattern 
-  // effectively by appending history to the prompt or relying on the 'contents' array structure.
-  
-  // We will append the recent history to the prompt text for simplicity in this specific architecture
   const recentHistory = history.slice(-6);
   let conversationContext = "";
   for (const msg of recentHistory) {
     conversationContext += `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}\n`;
     // Handle inline attachments in chat history
     if (msg.attachment) {
-       // We only attach the *latest* attachment strictly in the active parts below, 
-       // but we mention it in text here.
        conversationContext += `[User attached a ${msg.attachmentType}]\n`;
     }
   }
@@ -126,9 +118,7 @@ export const generateResponse = async (
   // D. Add Current User Message & Attachment
   parts.push({ text: currentQuery });
   
-  // Check if the LATEST message (current turn) has an attachment passed via history or separate arg?
-  // The App.tsx passes `currentQuery` as text. If there's an attachment in the "newMessage" object in App.tsx, 
-  // it is pushed to `history` before calling this. We should check the LAST item of history if it matches currentQuery.
+  // Check if the LATEST message (current turn) has an attachment
   const lastMsg = history[history.length - 1];
   if (lastMsg && lastMsg.role === 'user' && lastMsg.attachment) {
       parts.push({
@@ -163,7 +153,6 @@ export const generateResponse = async (
         if (chunk.web) {
           links.push({ title: chunk.web.title || "Web Source", uri: chunk.web.uri, source: 'search' });
         } else if (chunk.maps) {
-           // Maps chunks structure might vary, adapting generic access
            const uri = chunk.maps.uri || chunk.maps.googleMapsUri;
            if (uri) links.push({ title: chunk.maps.title || "Map Location", uri: uri, source: 'maps' });
         }
@@ -203,12 +192,9 @@ export const analyzeMedia = async (file: File): Promise<string> => {
     const prompt = isVideo 
       ? "Analyze this video. Describe the action, scene, and key events timestamp by timestamp." 
       : "Analyze this image. Describe the objects, setting, and any text or relevant details.";
-
-    // For video, we really should use the File API/Upload for large videos, 
-    // but for this snippet we assume small clips suitable for inlineData (up to 20MB approx).
     
     const response = await ai.models.generateContent({
-      model: isVideo ? 'gemini-2.5-flash' : 'gemini-2.5-flash', // Flash 2.5 is multimodal native
+      model: isVideo ? 'gemini-2.5-flash' : 'gemini-2.5-flash',
       contents: {
         parts: [
           { inlineData: { mimeType: file.type, data: extractBase64(base64) } },
@@ -226,20 +212,28 @@ export const generateVideo = async (config: MediaGenerationConfig): Promise<stri
   // Use Veo for video generation
   // Note: Users must have a paid key for Veo.
   try {
-    let operation = await ai.models.generateVideos({
+    // Check if user has selected a key for Veo (required by Gemini SDK policies for paid models)
+    if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
+        await window.aistudio.openSelectKey();
+    }
+
+    // Re-instantiate to ensure key is active
+    const veoAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    let operation = await veoAi.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
       prompt: config.prompt,
       config: {
         numberOfVideos: 1,
         resolution: '720p',
-        aspectRatio: config.aspectRatio === '16:9' ? '16:9' : '9:16' // Veo supports restricted ratios
+        aspectRatio: config.aspectRatio === '16:9' ? '16:9' : '9:16'
       }
     });
 
     // Poll for completion
     while (!operation.done) {
       await new Promise(resolve => setTimeout(resolve, 5000));
-      operation = await ai.operations.getVideosOperation({ operation: operation });
+      operation = await veoAi.operations.getVideosOperation({ operation: operation });
     }
 
     const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
@@ -249,26 +243,22 @@ export const generateVideo = async (config: MediaGenerationConfig): Promise<stri
     return `${videoUri}&key=${process.env.API_KEY}`;
   } catch (e) {
     console.error(e);
-    // Fallback URL if generation fails or key invalid for Veo
-    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"; // Fallback demo
   }
 };
 
 export const generateProImage = async (config: MediaGenerationConfig): Promise<string> => {
   try {
-    // Using Gemini Flash Image for generation
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: config.prompt }] },
       config: {
         imageConfig: {
            aspectRatio: config.aspectRatio,
-           // imageSize only for Pro model, Flash ignores it or throws
         }
       }
     });
 
-    // Extract image
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -277,7 +267,6 @@ export const generateProImage = async (config: MediaGenerationConfig): Promise<s
     throw new Error("No image generated.");
   } catch (e) {
     console.error(e);
-    // Fallback
     const text = encodeURIComponent(config.prompt.substring(0, 20));
     return `https://placehold.co/1024x1024/0284c7/white?text=${text}`;
   }
@@ -362,7 +351,6 @@ export const generateProjectPlan = async (goal: string): Promise<ProjectPlan> =>
 };
 
 export const consolidateMemory = async (history: Message[], currentMemory?: string): Promise<string> => {
-  // Simple consolidation simulation
   return currentMemory || ""; 
 };
 
