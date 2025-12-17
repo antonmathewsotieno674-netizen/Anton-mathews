@@ -71,9 +71,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
             <Button onClick={onGetStarted} size="lg" className="h-14 px-8 text-lg shadow-xl shadow-brand-500/30 hover:scale-105 transition-transform">
                Start Studying Free
             </Button>
-            <Button onClick={onGetStarted} variant="outline" size="lg" className="h-14 px-8 text-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800">
-               View Demo
-            </Button>
          </div>
 
          {/* Feature Grid */}
