@@ -106,7 +106,8 @@ export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ ba
         lineColor = 'rgba(255, 255, 255, ';
       } else {
         // Cyan/Teal branding colors for blue-green theme
-        particleColor = isDarkMode ? 'rgba(45, 212, 191, 0.6)' : 'rgba(13, 148, 136, 0.4)'; 
+        // Brighter particles for dark mode
+        particleColor = isDarkMode ? 'rgba(45, 212, 191, 0.8)' : 'rgba(13, 148, 136, 0.4)'; 
         lineColor = isDarkMode ? 'rgba(45, 212, 191, ' : 'rgba(13, 148, 136, ';
       }
 
@@ -179,7 +180,7 @@ export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ ba
   }, [backgroundImage]);
 
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-teal-50 dark:bg-slate-900">
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-teal-50 dark:bg-teal-950">
        
        {/* Layer 1: Background Image or Gradient */}
        {backgroundImage ? (
@@ -191,12 +192,13 @@ export const InteractiveBackground: React.FC<InteractiveBackgroundProps> = ({ ba
              }}
            />
        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-100 to-emerald-50 dark:from-teal-900/40 dark:via-slate-900 dark:to-emerald-900/40 transition-colors duration-700"></div>
+          // Brighter Blue-Green Gradient
+          <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-100 to-emerald-50 dark:from-teal-900 dark:via-cyan-950 dark:to-emerald-900 transition-colors duration-700 opacity-90"></div>
        )}
 
        {/* Layer 2: Overlay Texture & Vignette */}
        <div className={`absolute inset-0 ${backgroundImage ? 'bg-slate-900/30' : 'bg-transparent'}`}></div>
-       <div className="absolute inset-0 bg-radial-gradient-transparent dark:bg-[radial-gradient(transparent_0%,rgba(13,148,136,0.15)_100%)]"></div>
+       <div className="absolute inset-0 bg-radial-gradient-transparent dark:bg-[radial-gradient(transparent_0%,rgba(4,47,46,0.2)_100%)]"></div>
        {backgroundImage && <div className="absolute inset-0 bg-[radial-gradient(transparent_40%,rgba(2,6,23,0.8)_100%)]"></div>}
        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] opacity-30"></div>
 
