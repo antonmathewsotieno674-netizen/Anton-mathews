@@ -6,6 +6,7 @@ interface ChatInterfaceProps {
   messages: Message[];
   isLoading: boolean;
   onSpeak?: (text: string) => void;
+  onOCR?: (data: string, type: string) => void;
 }
 
 const CopyButton: React.FC<{ text: string, className?: string }> = ({ text, className = '' }) => {
@@ -25,7 +26,7 @@ const CopyButton: React.FC<{ text: string, className?: string }> = ({ text, clas
   );
 };
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoading, onSpeak }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoading, onSpeak, onOCR }) => {
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,13 +63,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, isLoadin
 
               {/* Attachments (User Uploads) */}
               {msg.attachment && (
-                <div className="mb-3 rounded-lg overflow-hidden border border-white/20 shadow-sm max-w-full">
+                <div className="mb-3 rounded-lg overflow-hidden border border-white/20 shadow-sm max-w-full relative group/attach">
                   {msg.attachmentType === 'video' ? (
                     <video src={msg.attachment} controls className="w-full h-auto max-h-[300px]" />
                   ) : msg.attachmentType === 'audio' ? (
                     <audio src={msg.attachment} controls className="w-full" />
                   ) : (
-                    <img src={msg.attachment} alt="Attachment" className="w-full h-auto max-h-[300px] object-cover" />
+                    <>
+                      {onOCR && (
+                        <button 
+                          onClick={() => onOCR(msg.attachment!, 'image/png')}
+                          className="absolute top-2 right-2 z-10 bg-black/60 hover:bg-black/80 text-white px-2 py-1 rounded-md text-[10px] font-bold opacity-0 group-hover/attach:opacity-100 transition-opacity flex items-center gap-1 shadow-lg"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                          SCAN TEXT
+                        </button>
+                      )}
+                      <img src={msg.attachment} alt="Attachment" className="w-full h-auto max-h-[300px] object-cover" />
+                    </>
                   )}
                 </div>
               )}
