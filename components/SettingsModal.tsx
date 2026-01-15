@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { UserState, LibraryItem, UploadRecord } from '../types';
 import { Button } from './Button';
@@ -58,6 +57,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
+  // Files State
+  const [fileSearchQuery, setFileSearchQuery] = useState('');
+
   // Feedback State
   const [feedbackText, setFeedbackText] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
@@ -67,6 +69,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setActiveTab(initialTab || 'profile');
       setLegalView('none'); // Reset legal view on open
+      setFileSearchQuery(''); // Reset file search on open
     }
   }, [isOpen, initialTab]);
 
@@ -147,6 +150,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Files Logic
+  const filteredUploadHistory = userState.uploadHistory.filter(record => 
+    record.name.toLowerCase().includes(fileSearchQuery.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -382,14 +390,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex justify-between items-center">
                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Uploaded Files</h3>
                    <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full">
-                      {userState.uploadHistory.length} files
+                      {filteredUploadHistory.length} {fileSearchQuery ? 'matches' : 'files'}
                    </span>
                 </div>
+
+                {/* File Search Bar */}
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </span>
+                  <input 
+                    type="text" 
+                    placeholder="Search by filename..." 
+                    className="w-full pl-10 pr-10 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm transition-all shadow-sm"
+                    value={fileSearchQuery}
+                    onChange={(e) => setFileSearchQuery(e.target.value)}
+                  />
+                  {fileSearchQuery && (
+                    <button 
+                      onClick={() => setFileSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 
-                {userState.uploadHistory && userState.uploadHistory.length > 0 ? (
+                {filteredUploadHistory.length > 0 ? (
                     <div className="space-y-3">
-                       {userState.uploadHistory.map((record) => (
-                          <div key={record.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                       {filteredUploadHistory.map((record) => (
+                          <div key={record.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                              <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold text-slate-800 dark:text-white truncate" title={record.name}>{record.name}</h4>
                                 <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -425,10 +459,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ) : (
                     <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                        <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
-                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                        </div>
-                       <h3 className="text-slate-600 dark:text-slate-300 font-medium">No uploads yet</h3>
-                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Uploaded files will appear here.</p>
+                       <h3 className="text-slate-600 dark:text-slate-300 font-medium">{fileSearchQuery ? 'No matches found' : 'No uploads yet'}</h3>
+                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                         {fileSearchQuery ? `No files found for "${fileSearchQuery}"` : 'Uploaded files will appear here.'}
+                       </p>
                     </div>
                 )}
              </div>

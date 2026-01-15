@@ -1,21 +1,25 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-interface UseSpeechRecognitionProps {
-  onResult: (text: string) => void;
+// Fix: Declare global types for SpeechRecognition to avoid TypeScript errors on window object
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
 }
 
-export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) => {
+export const useSpeechRecognition = ({ onResult }) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const onResultRef = useRef(onResult);
 
-  // Keep ref fresh to avoid re-creating recognition instance if onResult changes
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
   useEffect(() => {
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
     
     if (!SpeechRecognition) return;
 
@@ -36,15 +40,8 @@ export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) =>
       }
     };
 
-    recognition.onend = () => {
-      // Sometimes it stops automatically (silence, etc), update state
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      setIsListening(false);
-    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
 
     recognitionRef.current = recognition;
   }, []);
@@ -60,7 +57,6 @@ export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) =>
         recognitionRef.current.start();
         setIsListening(true);
       } catch (e) {
-        console.error("Failed to start speech recognition:", e);
         setIsListening(false);
       }
     }
@@ -69,6 +65,6 @@ export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) =>
   return {
     isListening,
     toggleListening,
-    hasSupport: !!((window as any).webkitSpeechRecognition || (window as any).SpeechRecognition)
+    hasSupport: !!(window.webkitSpeechRecognition || window.SpeechRecognition)
   };
 };

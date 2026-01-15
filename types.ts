@@ -1,34 +1,51 @@
 
-
-export type ModelMode = 'standard' | 'fast' | 'thinking' | 'maps' | 'search' | 'deep-research';
-
-export interface GroundingLink {
-  title: string;
-  uri: string;
-  source?: 'maps' | 'search';
-}
+// This file contains the shared TypeScript interfaces for the MOA AI application.
 
 export interface Message {
   role: 'user' | 'model';
   text: string;
-  attachment?: string; // Base64 data URL
-  attachmentType?: 'image' | 'video' | 'audio';
-  isError?: boolean;
-  groundingLinks?: GroundingLink[];
-  modelMode?: ModelMode;
+  attachment?: string;
+  attachmentType?: string;
+  modelMode?: string;
   generatedMedia?: {
     type: 'image' | 'video' | 'audio';
-    url: string; // Data URL or Blob URL
+    url: string;
     mimeType: string;
   };
+  groundingLinks?: Array<{ title: string; uri: string; source: string }>;
+  isError?: boolean;
 }
 
-export interface UploadedFile {
+export interface User {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  authMethod: 'email' | 'phone' | 'google';
+  profilePicture?: string;
+}
+
+export interface UploadRecord {
+  id: string;
   name: string;
   type: string;
-  content: string; // Base64 or Text
-  category: 'image' | 'text' | 'video' | 'audio';
-  originalImage?: string; 
+  size?: number;
+  date: number;
+  content?: string;
+  category: string;
+  originalImage?: string;
+}
+
+export interface UserState {
+  user: User | null;
+  isPremium: boolean;
+  hasPaid: boolean;
+  paymentHistory: any[];
+  downloadHistory: any[];
+  uploadHistory: UploadRecord[];
+  questionUsage: number[];
+  longTermMemory: string;
+  premiumExpiryDate?: number;
 }
 
 export interface LibraryItem {
@@ -41,54 +58,6 @@ export interface LibraryItem {
   fileType: string;
   date: string;
   downloads: number;
-  originalImage?: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  authMethod: 'email' | 'phone' | 'google';
-  profilePicture?: string;
-}
-
-export interface PaymentRecord {
-  id: string;
-  date: number;
-  amount: number;
-  method: string;
-}
-
-export interface DownloadRecord {
-  id: string;
-  itemTitle: string;
-  itemAuthor: string;
-  date: number;
-}
-
-export interface UploadRecord {
-  id: string;
-  name: string;
-  type: string;
-  size?: number;
-  date: number;
-  // Fields for file restoration
-  content?: string;
-  category?: 'image' | 'text' | 'video' | 'audio';
-  originalImage?: string;
-}
-
-export interface UserState {
-  user: User | null;
-  isPremium: boolean;
-  hasPaid: boolean;
-  premiumExpiryDate?: number;
-  paymentHistory: PaymentRecord[];
-  downloadHistory: DownloadRecord[];
-  uploadHistory: UploadRecord[];
-  questionUsage: number[];
-  longTermMemory?: string; // Persisted knowledge base about user/projects
 }
 
 export interface ActionItem {
@@ -97,28 +66,9 @@ export interface ActionItem {
   isCompleted: boolean;
 }
 
-// Advanced Scaffolding
-export interface ProjectStep {
-  step: string;
-  details: string;
-  status: 'pending' | 'in-progress' | 'done';
-}
-
-export interface ProjectPlan {
-  id: string;
-  title: string;
-  steps: ProjectStep[];
-}
-
-export interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-}
-
 export interface MediaGenerationConfig {
   type: 'image' | 'video';
   prompt: string;
-  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '2:3' | '3:2' | '21:9';
-  imageSize?: '1K' | '2K' | '4K'; // Only for image
-  referenceImage?: string; // Base64 for Veo image-to-video or editing
+  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  imageSize?: '1K' | '2K' | '4K';
 }

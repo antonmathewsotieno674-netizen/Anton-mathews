@@ -1,18 +1,22 @@
+
 import React from 'react';
 
+// Define the props interface for the Button component
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
 
+// Fix: Use React.FC with ButtonProps to ensure children and other props are correctly recognized
 export const Button: React.FC<ButtonProps> = ({ 
   children, 
   variant = 'primary', 
   size = 'md',
-  isLoading, 
+  isLoading = false, 
   className = '', 
-  disabled,
+  disabled = false,
   ...props 
 }) => {
   const baseStyle = "relative rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-offset-1 overflow-hidden";
@@ -36,7 +40,6 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       {...props}
     >
-      {/* Subtle background pulse animation during loading */}
       {isLoading && (
         <div className="absolute inset-0 bg-white/20 animate-pulse z-0"></div>
       )}

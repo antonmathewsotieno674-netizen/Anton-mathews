@@ -1,5 +1,4 @@
 
-
 export const APP_NAME = "MOA AI";
 export const APP_VERSION = "2.1.0";
 export const PREMIUM_PRICE_KSH = 20;

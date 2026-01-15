@@ -1,90 +1,71 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UploadedFile, Message, ActionItem, ModelMode, GroundingLink, MediaGenerationConfig, ProjectPlan } from "../types";
 
 // Initialize Gemini API
-// API Key is automatically injected by the environment
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- UTILITIES ---
 
-const extractBase64 = (dataUrl: string) => {
-  // Splits "data:image/png;base64,....." to get the base64 part
-  return dataUrl.split(',')[1];
+const extractBase64 = (dataUrl) => {
+  if (!dataUrl) return "";
+  return dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
 };
 
-const getMimeType = (dataUrl: string) => {
-  // Extracts "image/png" from data URL
+const getMimeType = (dataUrl) => {
+  if (!dataUrl || !dataUrl.includes(':')) return "image/jpeg";
   return dataUrl.substring(dataUrl.indexOf(':') + 1, dataUrl.indexOf(';'));
 };
 
 // --- API FUNCTIONS ---
 
 export const generateResponse = async (
-  history: Message[],
-  currentQuery: string,
-  file: UploadedFile | null,
-  mode: ModelMode = 'standard',
-  location?: { lat: number; lng: number },
-  longTermMemory?: string
-): Promise<{ text: string, groundingLinks?: GroundingLink[] }> => {
+  history,
+  currentQuery,
+  file,
+  mode = 'standard',
+  location,
+  longTermMemory
+) => {
 
-  let modelName = 'gemini-2.5-flash';
-  let tools: any[] | undefined = undefined;
-  let toolConfig: any | undefined = undefined;
-  let thinkingConfig: any | undefined = undefined;
+  let modelName = 'gemini-3-flash-preview';
+  let tools = undefined;
+  let toolConfig = undefined;
+  let thinkingConfig = undefined;
   let systemInstruction = "You are MOA AI, a helpful study assistant. Be concise and accurate.";
 
-  // 1. Configure Model & Tools based on Mode
   switch (mode) {
     case 'fast':
-      modelName = 'gemini-2.5-flash-lite-latest';
+      modelName = 'gemini-flash-lite-latest';
       break;
     case 'thinking':
-      modelName = 'gemini-2.5-flash';
-      // Enable Thinking (Reasoning)
+      modelName = 'gemini-3-flash-preview';
       thinkingConfig = { thinkingBudget: 1024 }; 
       break;
     case 'deep-research':
       modelName = 'gemini-3-pro-preview';
-      // Enable Search for research
       tools = [{ googleSearch: {} }];
-      systemInstruction += " Perform deep research on the topic. Structure your answer as a detailed report with an Executive Summary, Key Findings, and Conclusion.";
+      systemInstruction += " Perform deep research on the topic. Structure your answer as a detailed report.";
       break;
     case 'search':
-      modelName = 'gemini-2.5-flash';
+      modelName = 'gemini-3-flash-preview';
       tools = [{ googleSearch: {} }];
       break;
     case 'maps':
-      modelName = 'gemini-2.5-flash';
-      tools = [{ googleMaps: {} }];
-      if (location) {
-        toolConfig = {
-          retrievalConfig: {
-            latLng: {
-              latitude: location.lat,
-              longitude: location.lng
-            }
-          }
-        };
-      }
+      modelName = 'gemini-3-flash-preview';
+      tools = [{ googleSearch: {} }]; // Maps uses Search grounding in Gemini 3 series or specific tools
       break;
     case 'standard':
     default:
-      modelName = 'gemini-2.5-flash';
+      modelName = 'gemini-3-flash-preview';
       break;
   }
 
-  // 2. Build Content Parts
-  const parts: any[] = [];
+  const parts = [];
 
-  // A. Add Context from Uploaded File
   if (file) {
     if (file.category === 'text' && file.content) {
-      // For text files, add as text context
       parts.push({ text: `[CONTEXT FROM UPLOADED FILE: ${file.name}]\n${file.content}\n\n[END CONTEXT]` });
     } else if ((file.category === 'image' || file.category === 'video') && file.content) {
-      // For media files, add as inline data
       parts.push({
         inlineData: {
           mimeType: getMimeType(file.content),
@@ -95,17 +76,14 @@ export const generateResponse = async (
     }
   }
 
-  // B. Add Long Term Memory if available
   if (longTermMemory) {
     systemInstruction += `\nUser Context/Memory: ${longTermMemory}`;
   }
 
-  // C. Add Conversation History (Last 5 turns to save context window)
   const recentHistory = history.slice(-6);
   let conversationContext = "";
   for (const msg of recentHistory) {
     conversationContext += `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}\n`;
-    // Handle inline attachments in chat history
     if (msg.attachment) {
        conversationContext += `[User attached a ${msg.attachmentType}]\n`;
     }
@@ -115,10 +93,8 @@ export const generateResponse = async (
     parts.push({ text: `Conversation History:\n${conversationContext}\n` });
   }
 
-  // D. Add Current User Message & Attachment
   parts.push({ text: currentQuery });
   
-  // Check if the LATEST message (current turn) has an attachment
   const lastMsg = history[history.length - 1];
   if (lastMsg && lastMsg.role === 'user' && lastMsg.attachment) {
       parts.push({
@@ -129,7 +105,6 @@ export const generateResponse = async (
       });
   }
 
-  // 3. Call API
   try {
     const response = await ai.models.generateContent({
       model: modelName,
@@ -144,48 +119,45 @@ export const generateResponse = async (
 
     const outputText = response.text || "I processed that, but I don't have a text response.";
     
-    // Extract Grounding Links (Search/Maps)
-    let links: GroundingLink[] = [];
+    let links = [];
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     
     if (groundingChunks) {
-      groundingChunks.forEach((chunk: any) => {
+      groundingChunks.forEach((chunk) => {
         if (chunk.web) {
           links.push({ title: chunk.web.title || "Web Source", uri: chunk.web.uri, source: 'search' });
-        } else if (chunk.maps) {
-           const uri = chunk.maps.uri || chunk.maps.googleMapsUri;
-           if (uri) links.push({ title: chunk.maps.title || "Map Location", uri: uri, source: 'maps' });
         }
       });
     }
 
     return { text: outputText, groundingLinks: links };
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Gemini API Error:", error);
     return { text: `Error connecting to AI: ${error.message}` };
   }
 };
 
-export const performOCR = async (file: File): Promise<string> => {
+export const performOCR = async (fileData, mimeType) => {
   try {
-    const base64 = await fileToBase64(file);
+    const base64 = extractBase64(fileData);
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
-          { inlineData: { mimeType: file.type, data: extractBase64(base64) } },
-          { text: "Transcribe all text visible in this image. Format it clearly with headers if applicable." }
+          { inlineData: { mimeType: mimeType, data: base64 } },
+          { text: "Transcribe all text visible in this image. Format it clearly with headers if applicable. If it's a form or table, try to preserve the structure as much as possible using Markdown." }
         ]
       }
     });
     return response.text || "No text detected.";
   } catch (e) {
-    return "OCR Failed: " + (e as Error).message;
+    console.error("OCR API Error:", e);
+    throw new Error("OCR Failed: " + e.message);
   }
 };
 
-export const analyzeMedia = async (file: File): Promise<string> => {
+export const analyzeMedia = async (file) => {
   try {
     const base64 = await fileToBase64(file);
     const isVideo = file.type.startsWith('video');
@@ -194,7 +166,7 @@ export const analyzeMedia = async (file: File): Promise<string> => {
       : "Analyze this image. Describe the objects, setting, and any text or relevant details.";
     
     const response = await ai.models.generateContent({
-      model: isVideo ? 'gemini-2.5-flash' : 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: file.type, data: extractBase64(base64) } },
@@ -204,20 +176,16 @@ export const analyzeMedia = async (file: File): Promise<string> => {
     });
     return response.text || "Analysis failed.";
   } catch (e) {
-    return "Media Analysis Failed: " + (e as Error).message;
+    return "Media Analysis Failed: " + e.message;
   }
 };
 
-export const generateVideo = async (config: MediaGenerationConfig): Promise<string> => {
-  // Use Veo for video generation
-  // Note: Users must have a paid key for Veo.
+export const generateVideo = async (config) => {
   try {
-    // Check if user has selected a key for Veo (required by Gemini SDK policies for paid models)
     if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
         await window.aistudio.openSelectKey();
     }
 
-    // Re-instantiate to ensure key is active
     const veoAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let operation = await veoAi.models.generateVideos({
@@ -230,7 +198,6 @@ export const generateVideo = async (config: MediaGenerationConfig): Promise<stri
       }
     });
 
-    // Poll for completion
     while (!operation.done) {
       await new Promise(resolve => setTimeout(resolve, 5000));
       operation = await veoAi.operations.getVideosOperation({ operation: operation });
@@ -239,15 +206,14 @@ export const generateVideo = async (config: MediaGenerationConfig): Promise<stri
     const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
     if (!videoUri) throw new Error("No video URI returned.");
 
-    // Append key for download
     return `${videoUri}&key=${process.env.API_KEY}`;
   } catch (e) {
     console.error(e);
-    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"; // Fallback demo
+    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"; 
   }
 };
 
-export const generateProImage = async (config: MediaGenerationConfig): Promise<string> => {
+export const generateProImage = async (config) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -272,7 +238,7 @@ export const generateProImage = async (config: MediaGenerationConfig): Promise<s
   }
 };
 
-export const generateWallpaper = async (): Promise<string> => {
+export const generateWallpaper = async () => {
   return generateProImage({
     type: 'image',
     prompt: "A beautiful, abstract, calming wallpaper with teal, cyan and emerald green geometric shapes, 4k resolution, minimalist style",
@@ -280,13 +246,13 @@ export const generateWallpaper = async (): Promise<string> => {
   });
 };
 
-export const extractTasks = async (file: UploadedFile | null, history: Message[]): Promise<ActionItem[]> => {
+export const extractTasks = async (file, history) => {
   const context = file?.content ? `Document Content: ${file.content.substring(0, 10000)}...` : "No document.";
   const lastMsg = history[history.length - 1]?.text || "";
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Extract actionable tasks from the following context and conversation. Return a JSON array.
       
       Context: ${context}
@@ -317,10 +283,10 @@ export const extractTasks = async (file: UploadedFile | null, history: Message[]
   }
 };
 
-export const generateProjectPlan = async (goal: string): Promise<ProjectPlan> => {
+export const generateProjectPlan = async (goal) => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Create a project plan for: ${goal}`,
       config: {
         responseMimeType: "application/json",
@@ -350,15 +316,14 @@ export const generateProjectPlan = async (goal: string): Promise<ProjectPlan> =>
   }
 };
 
-export const consolidateMemory = async (history: Message[], currentMemory?: string): Promise<string> => {
+export const consolidateMemory = async (history, currentMemory) => {
   return currentMemory || ""; 
 };
 
-// Helper
-const fileToBase64 = (file: File): Promise<string> => {
+const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
